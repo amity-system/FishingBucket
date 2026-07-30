@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, AnyHttpUrl, PositiveInt, NonNegativeInt
 
 from .common import Importer
-from ..models import ProxyGroup, Proxy
+from ..models import ProxyTag, Proxy
 
 
 class TupperboxTupper(BaseModel):

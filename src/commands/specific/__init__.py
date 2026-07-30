@@ -9,7 +9,7 @@ from ..generic.misc import escape_string
 from ..generic.strategies import OneOf, HexadecimalStrategy, StringStrategy, IntegerStrategy
 from ...backend.config import Config
 from ...backend.database import Database
-from ...backend.models import Proxy, ProxyGroup
+from ...backend.models import Proxy, ProxyTag
 from ...backend.template_utils import Template, ExprPart
 from ...backend.utils import normalize_emojis
 from ...service import Context
@@ -79,16 +79,16 @@ class ProxyStrategy(Strategy):
         return "proxy"
 
 
-class ProxyGroupStrategy(Strategy):
+class ProxyTagStrategy(Strategy):
     def __init__(self, enforce_ownership: bool = True):
         self.enforce_ownership = enforce_ownership
 
-    async def parse(self, stream: CharacterStream, argument: ParsingArgument, context: Context) -> ProxyGroup:
+    async def parse(self, stream: CharacterStream, argument: ParsingArgument, context: Context) -> ProxyTag:
         owner = await get_uid(context)
         try:
             grp = await OneOf(hex, str).parse(stream, argument, context)
             if isinstance(grp, int):
-                group = await Database.instance.get_group(grp)
+                group = await Database.instance.get_tag(grp)
 
                 if not group:
                     raise ParseError("this proxy group does not exist")
@@ -98,7 +98,7 @@ class ProxyGroupStrategy(Strategy):
 
             else:
                 norm_name = normalize_emojis(grp)
-                user_groups = await Database.instance.get_user_groups(owner)
+                user_groups = await Database.instance.get_user_tags(owner)
                 if not user_groups:
                     raise ParseError("you do not own any proxy groups")
 

@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, AnyHttpUrl, NonNegativeInt
 
 from .common import Importer
-from ..models import ProxyGroup, Proxy
+from ..models import ProxyTag, Proxy
 
 
 class SystemGroup(BaseModel):

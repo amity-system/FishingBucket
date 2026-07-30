@@ -6,13 +6,13 @@ from textdistance import damerau_levenshtein as edit_distance
 from .generic import hook_command
 from .specific import get_uid
 from .utils import example_trigger_text, paged_proxy_list, get_proxies_text
-from ..backend.database import Database, MessageLink, AUTOPROXY_NORMAL, AUTOPROXY_USE_SPOTLIGHT
+from ..backend.database import Database, MessageLink, AUTOPROXY_USE_SPOTLIGHT
 from ..backend import database as db
 from ..backend.models import Proxy
 from ..backend.template_utils import Template
 from ..backend.utils import normalize_emojis
-from ..send_proxy import reproxy, get_webhook, edit_proxy_message
-from ..service import Context, Embed, Webhook
+from ..send_proxy import reproxy, edit_proxy_message
+from ..service import Context, Embed
 
 
 def setup():
@@ -36,10 +36,11 @@ def setup():
                 0,
                 datetime.now().timestamp(),
                 None,
-                "",
                 {},
                 None,
-                None
+                None,
+                [],
+                False
             )
         )
 

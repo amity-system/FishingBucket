@@ -5,7 +5,7 @@ from pydantic import BaseModel, AnyHttpUrl, PositiveFloat, NonNegativeInt
 
 from . import Exporter
 from .common import Importer
-from ..models import ProxyGroup, Proxy
+from ..models import ProxyTag, Proxy
 
 
 class NativeGroup(BaseModel):
@@ -39,19 +39,18 @@ class NativeImporter(Importer):
     def import_data(self, data: bytes, owner: int):
         root = NativeRoot(**json.loads(data.decode("utf-8")))
 
-        parsed_groups: dict[str, ProxyGroup] = {}
+        parsed_groups: dict[str, ProxyTag] = {}
         groups_queue: dict[str, NativeGroup] = {}
         for idx, group in root.groups.items():
-            g = ProxyGroup(
+            g = ProxyTag(
                 None,
                 group.name,
                 group.description,
                 owner,
                 group.time,
-                group.tag,
-                None
+                group.tag
             )
-            self.groups.append(g)
+            self.tags.append(g)
             parsed_groups[idx] = g
             groups_queue[idx] = group
 

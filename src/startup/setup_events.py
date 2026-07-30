@@ -1,6 +1,5 @@
 import asyncio
 import time
-import uuid
 
 import discord
 import fluxer

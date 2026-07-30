@@ -4,7 +4,7 @@ from typing import Callable
 from .generic import get_command_invocation, EarlyExitException
 from .specific import get_uid
 from ..backend.database import Database, UserPreference
-from ..backend.models import Proxy, ProxyGroup
+from ..backend.models import Proxy, ProxyTag
 from ..backend.template_utils import Template, TextPart
 from ..backend.utils import format_date
 from ..interaction import Interactions, Interaction
@@ -61,8 +61,8 @@ def get_groups_text(bunch: list[ProxyGroup], user_preference: UserPreference, de
 def get_proxies_text(bunch: list[Proxy], user_preference: UserPreference, detailed = False, length_limit = 4096, display_group: bool = True) -> tuple[str, int]:
     def list_fields(prox: Proxy) -> str:
         lns = []
-        if (user_preference.public_group or detailed) and display_group:
-            lns.append(f"- Group: {prox.group.name if prox.group else '*N/A*'}")
+        if (user_preference.public_tags or detailed) and display_group:
+            lns.append(f"- Tags: *{'*, *'.join(tag.name for tag in prox.tags) if prox.tags else 'N/A'}*")
         if user_preference.public_trigger or detailed:
             lns.append(f"- Triggers: {', '.join(f'`{trigger}`' for trigger in prox.triggers) if prox.triggers and any(bool(t) for t in prox.triggers) else '*N/A*'}")
         lns.append(f"- Avatar: [source]({prox.avatar_url})")
@@ -150,28 +150,30 @@ async def paged_proxy_list(context: Context, proxies: list[Proxy], title: str, p
         return
 
     pages = []
-    if (preferences.public_group or detailed) and show_groups:
-        groups = set(proxy.group for proxy in proxies)
-        if None in groups: groups.remove(None)
-        groups = sorted(groups, key=lambda g: g.id)
-        for group in groups:
-            group_proxies = [proxy for proxy in proxies if proxy.group is group]
+    if (preferences.public_tags or detailed) and show_groups:
+        all_tags: set[ProxyTag] = set()
+        for proxy in proxies:
+            for tag in proxy.tags:
+                all_tags.add(tag)
+        tags = sorted(all_tags, key=lambda t: t.id or 0)
+        for tag in tags:
+            tag_proxies = [proxy for proxy in proxies if tag in proxy.tags]
 
-            page_fore = f"**Group**: {group.name}"
+            page_fore = f"**Tag**: {tag.name}"
 
-            if group.description:
+            if tag.description:
                 page_fore += "\n"
-                for line in group.description.split("\n"):
+                for line in tag.description.split("\n"):
                     page_fore += "\n> " + line
 
             length_limit = 4096 - len(page_fore)
-            pages.extend(get_smart_pages(group_proxies, lambda section: get_proxies_text(section, preferences, detailed, length_limit, False), page_fore + "\n\n"))
+            pages.extend(get_smart_pages(tag_proxies, lambda section: get_proxies_text(section, preferences, detailed, length_limit, False), page_fore + "\n\n"))
 
-        group_proxies = [proxy for proxy in proxies if proxy.group is None]
+        tag_proxies = [proxy for proxy in proxies if not proxy.tags]
     else:
-        group_proxies = proxies
+        tag_proxies = proxies
 
-    pages.extend(get_smart_pages(group_proxies, lambda section: get_proxies_text(section, preferences, detailed, 4096, False)))
+    pages.extend(get_smart_pages(tag_proxies, lambda section: get_proxies_text(section, preferences, detailed, 4096, False)))
 
     await paged(
         context,

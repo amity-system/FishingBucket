@@ -1,7 +1,16 @@
 import random
+import time
 from dataclasses import dataclass
 import json
 from enum import Enum, auto
+from sqlite3 import Row
+from typing import Any
+
+
+def find_by_attr[T](lst: list[T], attr: str, target: Any) -> T | None:
+    for i in (el for el in lst if getattr(el, attr) == target):
+        return i
+    return None
 
 
 class ID(int):
@@ -10,27 +19,43 @@ class ID(int):
 
 
 @dataclass
-class ProxyGroup:
+class ProxyTag:
     id: ID | None
     name: str
     description: str
     owner: int
     creation_date: float
-    tag: str
-    parent: ProxyGroup | None
+    tag: str | None
 
     def __hash__(self):
         return hash(self.id)
 
     def __eq__(self, other):
-        if isinstance(other, ProxyGroup):
+        if isinstance(other, ProxyTag):
             return self.id == other.id
         return False
 
 
     @classmethod
-    def from_database(cls, data: tuple[int, str, str, int, float, str, int], parent: ProxyGroup | None) -> ProxyGroup:
-        return cls(ID(data[0]), data[1], data[2], data[3], data[4], data[5], parent)
+    def from_database(cls, row: Row) -> ProxyTag:
+        return cls(
+            ID(row["id"]),
+            row["name"] or "",
+            row["description"] or "",
+            row["owner"],
+            row["creation_date"] or time.time(),
+            row["tag"]
+        )
+
+    def make_template_object(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "creation_date": self.creation_date,
+            "tag": self.tag
+        }
+
 
 @dataclass
 class Proxy:
@@ -42,39 +67,52 @@ class Proxy:
     owner: int
     times_used: int
     creation_date: float
-    group: ProxyGroup | None
     nickname: str | None
     forms: dict[str, str]
     current_form: str | None
     pronouns: str | None
+    tags: list[ProxyTag]
+    tags_set: bool
 
     @staticmethod
     def random_avatar() -> str:
         return f"https://raw.githubusercontent.com/fluxerapp/fluxer/refs/tags/2026.703.173023/fluxer_static/avatars/{random.randint(0, 5)}.png"
 
     @classmethod
-    def from_database(cls, data: tuple[int, str, str, str, str, int, int, float, int | None, str | None, str | None, str | None, str | None], groups: list[ProxyGroup]) -> Proxy:
-        group = None
-        if data[8] and groups:
-            group = [g for g in groups if g.id == data[8]][0]
+    def from_database(cls, row: Row) -> Proxy:
+        return cls(
+            ID(row["id"]),
+            row["name"],
+            row["description"],
+            row["avatar_url"],
+            row["triggers"].split("\n"),
+            row["owner"],
+            row["times_used"] or 0,
+            row["creation_date"] or time.time(),
+            row["nickname"] or None,
+            json.loads(row["proxy_forms"] or "{}"),
+            row["current_form"] or None,
+            row["pronouns"] or None,
+            [],
+            False
+        )
 
-        return cls(ID(data[0]), data[1], data[2], data[3], data[4].split("\n"), data[5], data[6], data[7], group, data[9], json.loads(data[10] or "{}"), data[11], data[12])
+
+    def set_tags(self, tags: list[ProxyTag]):
+        self.tags = tags
+        self.tags_set = True
+
 
     @property
     def effective_name(self) -> str:
         from .template_utils import Template # i've sinned
         n = self.nickname or self.name
-        this_group = self.group
-        while this_group:
-            g = {
-                "id": this_group.id,
-                "name": this_group.name,
-                "description": this_group.description,
-                "owner": this_group.owner,
-                "creation_date": this_group.creation_date,
-                "tag": this_group.tag
-            }
-            n = Template.from_string(this_group.tag or "{}").compute({
+        tagged = [t for t in self.tags if t.tag]
+        effective_tag = tagged[0] if tagged else None
+        if effective_tag:
+            n = Template.from_string(
+                effective_tag.tag # type: ignore
+            ).compute({
                 "name": n,
                 "proxy": {
                     "id": self.id,
@@ -84,15 +122,14 @@ class Proxy:
                     "triggers": self.triggers,
                     "times_used": self.times_used,
                     "creation_date": self.creation_date,
-                    "group": g,
+                    "tags": [t.make_template_object() for t in self.tags],
                     "nickname": self.nickname,
                     "forms": self.forms,
                     "form": self.current_form,
                     "pronouns": self.pronouns or ""
                 },
-                "group": g
+                "tag": effective_tag.make_template_object()
             }, n)
-            this_group = this_group.parent
         return n
 
     @property

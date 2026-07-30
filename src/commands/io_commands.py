@@ -8,7 +8,7 @@ from .specific import get_uid
 from ..backend.database import Database
 from ..backend.import_system import NativeImporter, TupperboxImporter, PluralKitImporter, UtterImporter, NativeExporter
 from ..backend.logging import start_log
-from ..backend.models import ProxyGroup, Proxy
+from ..backend.models import ProxyTag, Proxy
 from ..service import Context, Embed, File
 
 print, error = start_log("im/exporter")

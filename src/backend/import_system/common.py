@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 
-from ..models import Proxy, ProxyGroup
+from ..models import Proxy, ProxyTag
 
 
 class Importer(ABC):
     def __init__(self):
         self.proxies: list[Proxy] = []
-        self.groups: list[ProxyGroup] = []
+        self.tags: list[ProxyTag] = []
 
     @abstractmethod
     def import_data(self, data: bytes, owner: int): pass
@@ -16,9 +16,9 @@ class Importer(ABC):
         return fragment.replace("{", "\\{").replace("}", "\\}")
 
 class Exporter(ABC):
-    def __init__(self, proxies: list[Proxy], groups: list[ProxyGroup]):
+    def __init__(self, proxies: list[Proxy], tags: list[ProxyTag]):
         self.proxies = proxies
-        self.groups = groups
+        self.tags = tags
 
     @abstractmethod
     def export_data(self) -> bytes: pass

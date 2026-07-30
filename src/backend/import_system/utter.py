@@ -4,7 +4,7 @@ import time
 from pydantic import BaseModel, AnyHttpUrl
 
 from .common import Importer
-from ..models import ProxyGroup, Proxy
+from ..models import ProxyTag, Proxy
 
 
 class ProxyTag(BaseModel):

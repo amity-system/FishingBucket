@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from sqlite3 import Row
 from typing import Any, Collection
 import aiosqlite as sql
 import time
@@ -9,14 +10,10 @@ from dataclasses import dataclass
 from .cache import TTLCache
 from .data_reader import DataReader
 from .logging import start_log
-from .models import Proxy, ProxyGroup, ID, Platform
+from .models import Proxy, ProxyTag, Platform, ID
 
 print, error = start_log("database")
 
-
-lst_proxy_fields = ["id", "name", "description", "avatar_url", "trigger", "owner", "times_used", "creation_date", "proxy_group", "nickname", "proxy_forms", "current_form", "pronouns"]
-proxy_fields = ", ".join(lst_proxy_fields)
-group_fields = ", ".join(["id", "name", "description", "owner", "creation_date", "tag", "parent"])
 
 def upsert_query(table: str, key: str | Collection[str], key_check: Any | Collection[Any], names: dict[str, tuple[Any, Any]], changes: list[str], values: list[Any]) -> tuple[str, tuple[Any]]:
     keys: Collection[str] = key if isinstance(key, tuple) else (key, )
@@ -43,7 +40,7 @@ class UserPreference:
     private_description: bool
     private_trigger: bool
     private_metadata: bool
-    private_group: bool
+    private_tags: bool
     private_list: bool
     private_forms: bool
     dice_functions: bytes
@@ -52,15 +49,26 @@ class UserPreference:
     private_spotlight: bool
 
     @classmethod
-    def from_database(cls, row: list) -> UserPreference:
-        return UserPreference(*row[0:8], json.loads(row[8] or "[]"), *row[9:])
+    def from_database(cls, row: Row) -> UserPreference:
+        return cls(
+            bool(row["private_description"]),
+            bool(row["private_trigger"]),
+            bool(row["private_metadata"]),
+            bool(row["private_proxy_tags"]),
+            bool(row["private_list"]),
+            bool(row["private_forms"]),
+            row["dice_functions"],
+            bool(row["private_pronouns"]),
+            json.loads(row["spotlight"] or "[]"),
+            bool(row["private_spotlight"])
+        )
 
     def to_database(self) -> tuple[bool, bool, bool, bool, bool, bool, bytes, bool, str, bool]:
         tup = self.as_tuple()
         return tup[0:8] + (json.dumps(tup[8]),) + tup[9:]
 
     def as_tuple(self) -> tuple[bool, bool, bool, bool, bool, bool, bytes, bool, list[int], bool]:
-        return (self.private_description, self.private_trigger, self.private_metadata, self.private_group,
+        return (self.private_description, self.private_trigger, self.private_metadata, self.private_tags,
                 self.private_list, self.private_forms, self.dice_functions, self.private_pronouns, self.spotlight, self.private_spotlight)
 
     @property
@@ -73,7 +81,7 @@ class UserPreference:
     def public_metadata(self) -> bool: return not self.private_metadata
 
     @property
-    def public_group(self) -> bool: return not self.private_group
+    def public_tags(self) -> bool: return not self.private_tags
 
     @property
     def public_list(self) -> bool: return not self.private_list
@@ -131,20 +139,20 @@ class Cache:
     SMALL = 512
 
     proxy_cache = TTLCache[int, Proxy](MASSIVE, LONG)
-    group_cache = TTLCache[int, ProxyGroup](MASSIVE, LONG)
+    tags_cache = TTLCache[int, ProxyTag](MASSIVE, LONG)
 
     user_id = TTLCache[tuple[int, Platform], int](MID, LONG)
     user_preferences = TTLCache[tuple[int], UserPreference](MID, LONG)
     autoproxy_preferences = TTLCache[tuple[int, Guild | None], UserAutoproxyPreference | None](MID, LONG)
     latest_proxy_message_from_user = TTLCache[tuple[int, int], int](BIG, SHORT)
     message_link = TTLCache[tuple[int, int], MessageLink](MID, MEDIUM)
-    guild_preferences = TTLCache(SMALL, MEDIUM)
-    guild_allows = TTLCache(SMALL, LONG)
+    guild_preferences = TTLCache[tuple[Guild], GuildPreference](SMALL, MEDIUM)
+    guild_allows = TTLCache[tuple[Guild, int], bool](SMALL, LONG)
     guild_role_allows = TTLCache[Guild, tuple[tuple[int, bool | None]]](MID, LONG)
     permission_allows: list[TTLCache[tuple[int, Guild], bool]] = [TTLCache(MEDIUM, LONG), TTLCache(MEDIUM, LONG), TTLCache(MEDIUM, LONG)]
-    webhook_link = TTLCache(MEDIUM, LONG)
+    webhook_link = TTLCache[tuple[int], int](MEDIUM, LONG)
     proxies_from_user = TTLCache[int, list[int]](BIG, MEDIUM)
-    groups_from_user = TTLCache[int, list[int]](MEDIUM, MEDIUM)
+    tags_from_user = TTLCache[int, list[int]](MEDIUM, MEDIUM)
 
 
 class Database:
@@ -157,6 +165,7 @@ class Database:
 
     async def init(self):
         self.connection = await sql.connect(self.database_file)
+        self.connection.row_factory = sql.Row
         await self.create_tables()
         await self.migrate()
         await self.connection.execute("VACUUM")
@@ -183,7 +192,7 @@ class Database:
             migration_script = DataReader.instance[data_file]
             try:
                 print(f"Migrating to version {version + 1}")
-                await self.connection.executescript(migration_script)
+                await self.connection.executescript("BEGIN TRANSACTION;" + migration_script + "; COMMIT;")
             except Exception as e:
                 error(e)
                 return
@@ -300,7 +309,7 @@ class Database:
             private_description: bool | None = None,
             private_trigger: bool | None = None,
             private_metadata: bool | None = None,
-            private_group: bool | None = None,
+            private_tags: bool | None = None,
             private_list: bool | None = None,
             private_forms: bool | None = None,
             dice_functions: bytes | None = None,
@@ -308,18 +317,18 @@ class Database:
             spotlight: list[int] | None = None,
             private_spotlight: bool | None = None
     ):
-        spotlight = json.dumps(spotlight)
+        spotlight_str = json.dumps(spotlight)
 
         names = {
             "private_description": (private_description, False),
             "private_trigger": (private_trigger, False),
             "private_metadata": (private_metadata, False),
-            "private_group": (private_group, False),
+            "private_tags": (private_tags, False),
             "private_list": (private_list, False),
             "private_forms": (private_forms, False),
             "dice_functions": (dice_functions, b""),
             "private_pronouns": (private_pronouns, False),
-            "spotlight": (spotlight, "[]"),
+            "spotlight": (spotlight_str, "[]"),
             "private_spotlight": (private_spotlight, False)
         }
         changes = [k for k, (v, _) in names.items() if v is not None]
@@ -329,7 +338,7 @@ class Database:
             return
 
         prefs = await self.get_user_preferences(user_id)
-        true_compare_list = (private_description, private_trigger, private_metadata, private_group, private_list, private_forms, dice_functions, private_pronouns, spotlight, private_spotlight)
+        true_compare_list = (private_description, private_trigger, private_metadata, private_tags, private_list, private_forms, dice_functions, private_pronouns, spotlight_str, private_spotlight)
         true_compare_list = tuple((a if a is not None else b for a, b in zip(true_compare_list, prefs.to_database())))
         if prefs != true_compare_list:
             await self.connection.execute(*upsert_query("user_settings", "user_id", user_id, names, changes, values))
@@ -344,7 +353,7 @@ class Database:
         ) as cursor:
             res = await cursor.fetchone()
             if not res: return UserPreference(False, False, False, False, False, False, b"", False, [], False)
-            else: return UserPreference.from_database(res[1:])
+            else: return UserPreference.from_database(res)
 
     @Cache.latest_proxy_message_from_user.cache_async()
     async def get_latest_proxy_message_from_user(self, channel_id: int, owner: int, platform: Platform) -> int | None:
@@ -366,8 +375,7 @@ class Database:
 
     async def delete_link_message(self, message_id: int, channel_id: int):
         lnk = await self.get_message_link(message_id, channel_id)
-        if lnk:
-            proxy = await self.get_proxy(lnk.proxy_id)
+        if lnk and (proxy := await self.get_proxy(lnk.proxy_id)):
             owner = proxy.owner
             Cache.latest_proxy_message_from_user.invalidate((channel_id, owner))
         await self.connection.execute(
@@ -458,10 +466,8 @@ class Database:
             return d
 
     async def get_allow_proxy(self, channel_id: int, guild: Guild, role_ids: list[int], user_id: int) -> bool:
-        channel_allowed = None
         guild_allowed = None
         roles_allowed = None
-        user_allowed = None
 
         if (channel_allowed := Cache.permission_allows[0].get((channel_id, guild))) is None:
             async with self.connection.execute(
@@ -535,8 +541,8 @@ class Database:
     async def put_proxy(self, proxy: Proxy) -> Proxy:
         proxy.triggers = [t for t in proxy.triggers if t]
         cursor = await self.connection.execute(
-            "INSERT INTO proxies (name, description, avatar_url, trigger, owner, times_used, creation_date, proxy_group, nickname, proxy_forms, current_form, pronouns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (proxy.name, proxy.description, proxy.avatar_url, "\n".join(proxy.triggers), proxy.owner, proxy.times_used, time.time(), proxy.group.id if proxy.group else None, proxy.nickname, json.dumps(proxy.forms), proxy.current_form, proxy.pronouns)
+            "INSERT INTO proxies (name, description, avatar_url, trigger, owner, times_used, creation_date, nickname, proxy_forms, current_form, pronouns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (proxy.name, proxy.description, proxy.avatar_url, "\n".join(proxy.triggers), proxy.owner, proxy.times_used, time.time(), proxy.nickname, json.dumps(proxy.forms), proxy.current_form, proxy.pronouns)
         )
         await self.connection.commit()
         proxy.id = ID(cursor.lastrowid)
@@ -545,20 +551,25 @@ class Database:
 
         await self.set_global_data("total_proxies", "value + 1", 1)
 
+        for tag in proxy.tags:
+            await self.put_tag(tag)
+
+        await self.update_tags(proxy.id, [tag.id for tag in proxy.tags])
+
         return proxy
 
-    async def put_group(self, group: ProxyGroup) -> ProxyGroup:
+    async def put_tag(self, tag: ProxyTag) -> ProxyTag:
         cursor = await self.connection.execute(
-            "INSERT INTO proxy_groups (name, description, owner, creation_date, tag, parent) VALUES (?, ?, ?, ?, ?, ?)",
-            (group.name, group.description, group.owner, group.creation_date, group.tag, group.parent.id if group.parent else None)
+            "INSERT INTO proxy_groups (name, description, owner, creation_date, tag) VALUES (?, ?, ?, ?, ?)",
+            (tag.name, tag.description, tag.owner, tag.creation_date, tag.tag)
         )
         await self.connection.commit()
 
-        group.id = ID(cursor.lastrowid)
-        Cache.groups_from_user.invalidate(group.owner)
+        tag.id = ID(cursor.lastrowid)
+        Cache.tags_from_user.invalidate(tag.owner)
         await cursor.close()
 
-        return group
+        return tag
 
     async def use_proxy(self, id_: int):
         await self.connection.execute(
@@ -593,14 +604,27 @@ class Database:
             prox.avatar_url = avatar_url
         await self.connection.commit()
 
-    async def update_group(self, proxy_id: int, group_id: int | None):
+    async def update_tags(self, proxy_id: int, tags: list[int]):
         await self.connection.execute(
-            "UPDATE proxies SET proxy_group = ? WHERE id = ?",
-            (group_id, proxy_id)
+            "DELETE FROM proxy_tags_map WHERE proxy_id = ?",
+            (proxy_id,)
+        )
+        await self.connection.executemany(
+            "INSERT INTO proxy_tags_map (proxy_id, tags) VALUES (?, ?)",
+            [(proxy_id, tag) for tag in tags]
         )
         if prox := await self.get_proxy(proxy_id):
-            prox.group = await self.get_group(group_id)
+            prox.set_tags(await self.get_tags(tags))
         await self.connection.commit()
+
+
+    async def get_tags(self, tags: list[int]) -> list[ProxyTag]:
+        lst: list[ProxyTag] = []
+        for tag in tags:
+            if t := await self.get_tag(tag):
+                lst.append(t)
+        return lst
+
 
     async def update_description(self, proxy_id: int, description: str):
         await self.connection.execute(
@@ -666,40 +690,31 @@ class Database:
             prox.pronouns = pronouns
         await self.connection.commit()
 
-    async def update_group_name(self, id_: int, name: str):
+    async def update_tag_name(self, id_: int, name: str):
         await self.connection.execute(
-            "UPDATE proxy_groups SET name = ? WHERE id = ?",
+            "UPDATE proxy_tags SET name = ? WHERE id = ?",
             (name, id_)
         )
-        if group := await self.get_group(id_):
-            group.name = name
+        if tag := await self.get_tag(id_):
+            tag.name = name
         await self.connection.commit()
 
-    async def update_group_tag(self, id_: int, tag: str):
+    async def update_tag_tag(self, id_: int, tag: str):
         await self.connection.execute(
-            "UPDATE proxy_groups SET tag = ? WHERE id = ?",
+            "UPDATE proxy_tags SET tag = ? WHERE id = ?",
             (tag, id_)
         )
-        if group := await self.get_group(id_):
-            group.tag = tag
+        if tag_ := await self.get_tag(id_):
+            tag_.tag = tag
         await self.connection.commit()
 
-    async def update_group_description(self, id_: int, desc: str):
+    async def update_tag_description(self, id_: int, desc: str):
         await self.connection.execute(
-            "UPDATE proxy_groups SET description = ? WHERE id = ?",
+            "UPDATE proxy_tags SET description = ? WHERE id = ?",
             (desc, id_)
         )
-        if group := await self.get_group(id_):
-            group.description = desc
-        await self.connection.commit()
-
-    async def update_group_parent(self, id_: int, parent: int | None):
-        await self.connection.execute(
-            "UPDATE proxy_groups SET parent = ? WHERE id = ?",
-            (parent, id_)
-        )
-        if group := await self.get_group(id_):
-            group.parent = await self.get_group(parent)
+        if tag := await self.get_tag(id_):
+            tag.description = desc
         await self.connection.commit()
 
     async def delete_proxy(self, id_: int):
@@ -713,81 +728,66 @@ class Database:
             await self.connection.commit()
             await self.set_global_data("total_proxies", "value - 1", 0)
 
-    async def delete_group(self, id_: int):
-        group = await self.get_group(id_)
-        Cache.groups_from_user.invalidate(group.owner)
+    async def delete_tag(self, id_: int):
+        tag = await self.get_tag(id_)
+        if not tag: return
+        Cache.tags_from_user.invalidate(tag.owner)
+        async with self.connection.execute(
+            "DELETE FROM proxy_tags_map WHERE tag_id = ? RETURNING proxy_id",
+            (id_,)
+        ) as cursor:
+            for row in await cursor.fetchall():
+                Cache.proxy_cache.invalidate(row[0])
+
         await self.connection.execute(
-            "DELETE FROM proxy_groups WHERE id = ?",
+            "DELETE FROM proxy_tags WHERE id = ?",
             (id_, )
         )
-        Cache.group_cache.invalidate(id_)
-        async with self.connection.execute(
-            "UPDATE proxies SET proxy_group = ? WHERE proxy_group = ? RETURNING id",
-            (None, id_)
-        ) as cursor:
-            row_ids = await cursor.fetchall()
-            for row in row_ids:
-                Cache.proxy_cache.invalidate(row[0])
-        async with self.connection.execute(
-            "UPDATE proxy_groups SET parent = ? WHERE parent = ? RETURNING id",
-            (None, id_)
-        ) as cursor:
-            row_ids = await cursor.fetchall()
-            for row in row_ids:
-                Cache.group_cache.invalidate(row[0])
+        Cache.tags_cache.invalidate(id_)
 
     async def get_proxy(self, id_: int) -> Proxy | None:
         if ret := Cache.proxy_cache.get(id_): return ret
 
         async with self.connection.execute(
-            f"SELECT {proxy_fields} FROM proxies WHERE id = ?",
+            f"SELECT * FROM proxies WHERE id = ?",
             (id_, )
         ) as cursor:
             res = await cursor.fetchone()
             if not res:
                 ret = None
             else:
-                ret = Proxy.from_database(res, await self.get_user_groups(res[lst_proxy_fields.index("owner")]))
+                ret = Proxy.from_database(res)
+                ret.set_tags(await self.get_tags(await self.get_proxy_tags(ret.id)))
                 Cache.proxy_cache.set(id_, ret)
             return ret
 
-    async def will_groups_cycle(self, group_id: int, potential_new_group_parent_id: int) -> bool:
-        # excuse this chatgpt code
-        async with self.connection.execute("""
-        WITH RECURSIVE ancestors AS (
-            SELECT id, parent FROM proxy_groups WHERE id = ?
-            UNION ALL
-            SELECT g.id, g.parent
-            FROM proxy_groups g
-            INNER JOIN ancestors a ON a.parent = g.id
-        )
-        SELECT EXISTS (SELECT 1 FROM ancestors WHERE id = ?);
-        """, (potential_new_group_parent_id, group_id)) as cursor:
-            do_loop, = await cursor.fetchone()
-            return do_loop
 
-    async def get_group(self, id_: int) -> ProxyGroup | None:
-        if ret := Cache.group_cache.get(id_): return ret
+    async def get_proxy_tags(self, proxy_id: int) -> list[int]:
+        async with self.connection.execute(
+            "SELECT tag_id FROM proxy_tags_map WHERE proxy_id = ?",
+            (proxy_id,)
+        ) as cursor:
+            return [r[0] for r in await cursor.fetchall()]
+
+
+    async def get_tag(self, id_: int) -> ProxyTag | None:
+        if ret := Cache.tags_cache.get(id_): return ret
 
         async with self.connection.execute(
-            f"SELECT {group_fields} FROM proxy_groups WHERE id = ?",
+            f"SELECT * FROM proxy_tags WHERE id = ?",
             (id_, )
         ) as cursor:
             res = await cursor.fetchone()
             if not res:
                 ret = None
             else:
-                parent = None
-                if res[6]:
-                    parent = await self.get_group(res[6])
-
-                ret = ProxyGroup.from_database(res, parent)
-                Cache.group_cache.set(id_, ret)
+                ret = ProxyTag.from_database(res)
+                Cache.tags_cache.set(id_, ret)
             return ret
 
-    async def get_group_member_count(self, id_: int) -> int:
+    async def get_tag_member_count(self, id_: int) -> int:
         cursor = await self.connection.execute(
-            "SELECT COUNT(*) FROM proxies WHERE proxy_group = ?",
+            "SELECT COUNT(*) FROM proxy_tags_map WHERE tag_id = ?",
             (id_, )
         )
         res = await cursor.fetchone()
@@ -810,20 +810,20 @@ class Database:
             Cache.proxies_from_user.set(user, [prox.id for prox in proxies])
             return proxies
 
-    async def get_user_groups(self, user: int) -> list[ProxyGroup]:
-        if ids := Cache.groups_from_user.get(user):
-            gr = []
+    async def get_user_tags(self, user: int) -> list[ProxyTag]:
+        if ids := Cache.tags_from_user.get(user):
+            tags = []
             for id_ in ids:
-                gr.append(await self.get_group(id_))
-            return gr
+                tags.append(await self.get_tag(id_))
+            return tags
 
         async with self.connection.execute(
-            f"SELECT id FROM proxy_groups WHERE owner = ? ORDER BY id ASC",
+            f"SELECT id FROM proxy_tags WHERE owner = ? ORDER BY id ASC",
             (user, )
         ) as cursor:
-            groups = [await self.get_group(row[0]) for row in await cursor.fetchall()]
-            Cache.groups_from_user.set(user, [group.id for group in groups])
-            return groups
+            tags = await self.get_tags([r[0] for r in await cursor.fetchall()])
+            Cache.tags_from_user.set(user, [tag.id for tag in tags])
+            return tags
 
     async def close(self):
         print("Closing database connection.")
@@ -841,11 +841,11 @@ class Database:
             (owner, )
         )
         await self.connection.execute(
-            "DELETE FROM proxy_groups WHERE owner = ?",
+            "DELETE FROM proxy_tags WHERE owner = ?",
             (owner, )
         )
         Cache.proxies_from_user.invalidate(owner)
-        Cache.groups_from_user.invalidate(owner)
+        Cache.tags_from_user.invalidate(owner)
         await self.set_global_data("total_proxies", f"value - {amt}", 0)
 
     async def set_global_data(self, key: str, value_exists: str, value_not_exists: float):

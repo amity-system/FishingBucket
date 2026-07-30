@@ -1,5 +1,3 @@
-from collections import Counter
-
 from .generic import hook_command, EarlyExitException
 from .specific import get_uid
 from .utils import paged_proxy_list
