@@ -16,5 +16,6 @@
   "14": "migrations/15.sql",
   "15": "migrations/16.sql",
   "16": "migrations/17.sql",
-  "17": "migrations/18.sql"
+  "17": "migrations/18.sql",
+  "18": "migrations/19.sql"
 }

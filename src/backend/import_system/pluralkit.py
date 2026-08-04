@@ -18,7 +18,7 @@ class SystemGroup(BaseModel):
     members: list[str]
 
 
-class ProxyTag(BaseModel):
+class PKProxyTag(BaseModel):
     prefix: str | None = None
     suffix: str | None = None
 
@@ -32,7 +32,7 @@ class SystemMember(BaseModel):
     created: datetime | None = None
     keep_proxy: bool | None = None
     message_count: NonNegativeInt | None = None
-    proxy_tags: list[ProxyTag]
+    proxy_tags: list[PKProxyTag]
     pronouns: str | None = None
 
 
@@ -54,9 +54,9 @@ class PluralKitRoot(BaseModel):
 class PluralKitImporter(Importer):
     def import_data(self, data: bytes, owner: int):
         root = PluralKitRoot(**json.loads(data.decode("utf-8")))
-        default_group = ProxyGroup(
+        default_tag = ProxyTag(
             None,
-            root.name,
+            root.name or "PluralKit System",
             root.description or "This group is used to house the imported proxies from PluralKit!",
             owner,
             time.time(),
@@ -64,10 +64,9 @@ class PluralKitImporter(Importer):
                 (root.config.name_format or "{name} {tag}")
                 .replace("{name}", "{}")
                 .replace("{tag}", root.tag)
-            ) if root.tag else "",
-            None
+            ) if root.tag else ""
         )
-        self.groups.append(default_group)
+        self.tags.append(default_tag)
 
         members_map: dict[str, Proxy] = {}
 
@@ -76,7 +75,7 @@ class PluralKitImporter(Importer):
             for tag in member.proxy_tags:
                 prefix = self.sanitize_potential_template_fragment(tag.prefix or "")
                 postfix = self.sanitize_potential_template_fragment(tag.suffix or "")
-                if root.config.case_sensitive_proxy_tags:
+                if not root.config.case_sensitive_proxy_tags:
                     parts = []
                     if prefix:
                         parts.append(f"text.lower().startswith({prefix!r})")
@@ -111,29 +110,29 @@ class PluralKitImporter(Importer):
                 owner,
                 member.message_count or 0,
                 member.created.timestamp() if member.created else time.time(),
-                default_group,
                 member.display_name or "",
                 {},
-                None,
-                member.pronouns
+                "",
+                member.pronouns or "",
+                [default_tag],
+                True
             )
 
             members_map[member.id] = p
             self.proxies.append(p)
 
         for group in root.groups:
-            g = ProxyGroup(
+            t = ProxyTag(
                 None,
                 group.display_name or group.name,
                 group.description or "",
                 owner,
                 group.created.timestamp() if group.created else time.time(),
-                "",
-                default_group
+                ""
             )
 
-            for member in (group.members or []):
-                if member in members_map:
-                    members_map[member].group = g
+            for member_id in (group.members or []):
+                if member_id in members_map:
+                    members_map[member_id].tags.insert(0, t)
 
-            self.groups.append(g)
+            self.tags.append(t)

@@ -39,19 +39,18 @@ class TupperboxRoot(BaseModel):
 class TupperboxImporter(Importer):
     def import_data(self, data: bytes, owner: int):
         root = TupperboxRoot(**json.loads(data.decode("utf-8")))
-        group_mapping: dict[int, ProxyGroup] = {}
+        tag_mapping: dict[int, ProxyTag] = {}
         for group in root.groups:
-            g = ProxyGroup(
+            t = ProxyTag(
                 None,
                 group.name,
                 group.description or "",
                 owner,
                 time.time(),
-                group.tag or "",
-                None
+                group.tag or ""
             )
-            group_mapping[group.id] = g
-            self.groups.append(g)
+            tag_mapping[group.id] = t
+            self.tags.append(t)
 
         for tupper in root.tuppers:
             brackets = []
@@ -77,11 +76,12 @@ class TupperboxImporter(Importer):
                 owner,
                 tupper.posts or 0,
                 tupper.created_at.timestamp() if tupper.created_at else time.time(),
-                group_mapping.get(tupper.group_id),
                 nick or "",
                 {},
-                None,
-                None
+                "",
+                "",
+                [self.tags[tupper.group_id]] if tupper.group_id else [],
+                True
             )
 
             self.proxies.append(p)

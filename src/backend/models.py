@@ -4,14 +4,6 @@ from dataclasses import dataclass
 import json
 from enum import Enum, auto
 from sqlite3 import Row
-from typing import Any
-
-
-def find_by_attr[T](lst: list[T], attr: str, target: Any) -> T | None:
-    for i in (el for el in lst if getattr(el, attr) == target):
-        return i
-    return None
-
 
 class ID(int):
     def __str__(self):
@@ -25,7 +17,7 @@ class ProxyTag:
     description: str
     owner: int
     creation_date: float
-    tag: str | None
+    tag: str
 
     def __hash__(self):
         return hash(self.id)
@@ -44,7 +36,7 @@ class ProxyTag:
             row["description"] or "",
             row["owner"],
             row["creation_date"] or time.time(),
-            row["tag"]
+            row["tag"] or ""
         )
 
     def make_template_object(self) -> dict:
@@ -67,10 +59,10 @@ class Proxy:
     owner: int
     times_used: int
     creation_date: float
-    nickname: str | None
+    nickname: str
     forms: dict[str, str]
-    current_form: str | None
-    pronouns: str | None
+    current_form: str
+    pronouns: str
     tags: list[ProxyTag]
     tags_set: bool
 
@@ -89,10 +81,10 @@ class Proxy:
             row["owner"],
             row["times_used"] or 0,
             row["creation_date"] or time.time(),
-            row["nickname"] or None,
+            row["nickname"] or "",
             json.loads(row["proxy_forms"] or "{}"),
-            row["current_form"] or None,
-            row["pronouns"] or None,
+            row["current_form"] or "",
+            row["pronouns"] or "",
             [],
             False
         )
@@ -134,7 +126,7 @@ class Proxy:
 
     @property
     def effective_avatar(self) -> str:
-        return self.forms.get(self.current_form, self.avatar_url)
+        return self.forms.get(self.current_form or "", self.avatar_url)
 
 
 class Platform(Enum):

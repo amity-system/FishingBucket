@@ -52,7 +52,8 @@ def setup():
                                 "pluralkit": [
                                     "pk"
                                 ],
-                                "utter": []
+                                "utter": [],
+                                "fishing_bucket_old": []
                             },
                             True
                         ),

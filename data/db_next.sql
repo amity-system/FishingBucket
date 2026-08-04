@@ -7,10 +7,10 @@ CREATE TABLE IF NOT EXISTS proxies (
     owner INTEGER NOT NULL,
     times_used INTEGER,
     creation_date REAL,
-    nickname TEXT,
-    proxy_forms TEXT, -- {str: url}
-    current_form TEXT,
-    pronouns TEXT,
+    nickname TEXT NOT NULL,
+    proxy_forms TEXT NOT NULL, -- {str: url}
+    current_form TEXT NOT NULL,
+    pronouns TEXT NOT NULL,
     FOREIGN KEY (owner) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
@@ -25,10 +25,10 @@ CREATE TABLE IF NOT EXISTS proxy_tags_map (
 CREATE TABLE IF NOT EXISTS proxy_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT,
+    description TEXT NOT NULL,
     owner INTEGER NOT NULL,
     creation_date REAL,
-    tag TEXT,
+    tag TEXT NOT NULL,
     FOREIGN KEY (owner) REFERENCES users (user_id) ON DELETE CASCADE
 );
 

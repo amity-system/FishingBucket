@@ -7,7 +7,7 @@ from .common import Importer
 from ..models import ProxyTag, Proxy
 
 
-class ProxyTag(BaseModel):
+class UtterProxyTag(BaseModel):
     prefix: str | None = None
     suffix: str | None = None
 
@@ -17,7 +17,7 @@ class UtterMember(BaseModel):
     name: str
     displayname: str | None = None
     avatar_url: AnyHttpUrl | None = None
-    proxy_tags: list[ProxyTag]
+    proxy_tags: list[UtterProxyTag]
     keep_proxy: bool | None = None
     description: str | None = None
     pronouns: str | None = None
@@ -38,23 +38,22 @@ class UtterSystem(BaseModel):
 class UtterImporter(Importer):
     def import_data(self, data: bytes, owner: int):
         root = UtterSystem(**json.loads(data.decode("utf-8")))
-        default_group = ProxyGroup(
+        default_tag = ProxyTag(
             None,
             root.name or "New System",
-            root.description or "This group is used to house the imported proxies from Utter!",
+            "The imported proxies from Utter!",
             owner,
             time.time(),
             (
                 ((root.config or UtterConfig()).name_format or "{name} {tag}")
                 .replace("{name}", "{}")
-                .replace("{tag}", root.tag)
+                .replace("{tag}", root.tag or "")
                 .replace("{rawname}", "{proxy.name}")
                 .replace("{description}", "{proxy.description}")
                 .replace("{pronouns}", "{proxy.pronouns}")
             ).strip() or "",
-            None
         )
-        self.groups.append(default_group)
+        self.tags.append(default_tag)
 
         members_map: dict[str, Proxy] = {}
 
@@ -77,11 +76,12 @@ class UtterImporter(Importer):
                 owner,
                 0,
                 time.time(),
-                default_group,
                 member.displayname or "",
                 {},
-                None,
-                member.pronouns
+                "",
+                member.pronouns or "",
+                [default_tag],
+                True
             )
 
             members_map[member.id] = p
