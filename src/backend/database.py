@@ -194,6 +194,7 @@ class Database:
                 print(f"Migrating to version {version + 1}")
                 await self.connection.executescript("BEGIN TRANSACTION;" + migration_script + "; COMMIT;")
             except Exception as e:
+                await self.connection.execute("ROLLBACK;")
                 error(e)
                 return
             version += 1

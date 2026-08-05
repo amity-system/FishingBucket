@@ -2,7 +2,7 @@ PRAGMA foreign_keys = ON;
 
 
 INSERT INTO proxy_tags (id, name, description, owner, creation_date, tag)
-    SELECT id, COALESCE(name, 'group'), COALESCE(description, ''), owner, creation_date, tag
+    SELECT id, COALESCE(name, 'group'), COALESCE(description, ''), owner, creation_date, COALESCE(tag, '')
     FROM proxy_groups;
 
 INSERT OR REPLACE INTO sqlite_sequence (name, seq)
