@@ -7,7 +7,7 @@ from fastapi.requests import Request
 from .api_app import Application, require_session
 from .api_database import Session, Database, this_time, SESSION_TTL
 from .batch_edit import handle_batch_edit
-from .models import Proxy, ProxyGroup, ModifiedItemResponse, BatchEdit, LoginInformation, RefreshLogin
+from .models import Proxy, ProxyTag, ModifiedItemResponse, BatchEdit, LoginInformation, RefreshLogin
 from ..backend.models import Platform
 
 app = Application()
@@ -16,7 +16,7 @@ router = app.create_router("/api/v1")
 @router.get("/proxy/{proxy_id}", response_model=Proxy)
 async def _(proxy_id: int, session: Session = Depends(require_session)):
     proxy = await app.context.database.get_proxy(proxy_id)
-    if session.user_id == proxy.owner:
+    if proxy and session.user_id == proxy.owner:
         return Proxy.from_source(proxy)
     raise HTTPException(403, "Missing permissions to view proxy, or the proxy does not exist!")
 
@@ -27,19 +27,19 @@ async def _(session: Session = Depends(require_session)) -> list[Proxy]:
     proxies = await app.context.database.get_user_proxies(session.user_id)
     return [Proxy.from_source(proxy) for proxy in proxies]
 
-@router.get("/groups", response_model=list[ProxyGroup])
-async def _(session: Session = Depends(require_session)) -> list[ProxyGroup]:
+@router.get("/tags", response_model=list[ProxyTag])
+async def _(session: Session = Depends(require_session)) -> list[ProxyTag]:
     if session.user_id == -1:
         return []
-    groups = await app.context.database.get_user_groups(session.user_id)
-    return [ProxyGroup.from_source(group) for group in groups]
+    groups = await app.context.database.get_user_tags(session.user_id)
+    return [ProxyTag.from_source(group) for group in groups]
 
-@router.get("/group/{group_id}", response_model=ProxyGroup)
-async def _(group_id: int, session: Session = Depends(require_session)) -> ProxyGroup:
-    group = await app.context.database.get_group(group_id)
-    if session.user_id == group.owner:
-        return ProxyGroup.from_source(group)
-    raise HTTPException(403, "Missing permissions to view group, or the group does not exist!")
+@router.get("/tag/{group_id}", response_model=ProxyTag)
+async def _(tag_id: int, session: Session = Depends(require_session)) -> ProxyTag:
+    tag = await app.context.database.get_tag(tag_id)
+    if tag and session.user_id == tag.owner:
+        return ProxyTag.from_source(tag)
+    raise HTTPException(403, "Missing permissions to view tag, or the tag does not exist!")
 
 @router.post("/edit", response_model=ModifiedItemResponse)
 async def _(edits: BatchEdit, session: Session = Depends(require_session)) -> ModifiedItemResponse:
