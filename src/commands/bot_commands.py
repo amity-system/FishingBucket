@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from .generic import hook_command, get_commands, get_command_groups, strategize, Command, CommandGroup, \
-    get_session_command_usages, get_command_invocation
+    get_session_command_usages, get_command_invocation, strip_prefix
 from .utils import paged
 from ..backend.cache import CacheStatus
 from ..backend.config import Config
@@ -81,25 +81,6 @@ def setup():
             )
             return
 
-        commands = get_commands()
-        if topic in commands:
-            command = commands[topic]
-            description = f"**Usage**: `{Config.prefix(context.platform)}{command.get_usage(strategize)}`\n\n{get_description(command)}\n\n**Examples**:"
-            examples = []
-            for _ in range(10):
-                example = command.get_example_invocation()
-                if example not in examples:
-                    examples.append(example)
-
-                if len(examples) == 3:
-                    break
-
-            for example in sorted(examples, key=len):
-                description += f"\n- `{Config.prefix(context.platform)}{example}`"
-
-            await context.reply("", [Embed(f"Help: {Config.prefix(context.platform)}{topic}", description)])
-            return
-
         groups = get_command_groups()
         if topic in groups:
             group = groups[topic]
@@ -110,6 +91,45 @@ def setup():
 
             await context.reply("", [Embed(f"Help: {group.brief}", description)])
             return
+
+        commands = get_commands()
+        command_groups = get_command_groups()
+
+        content = topic
+
+        possible_commands: list[str]
+        for group in command_groups.values():
+            if not group.prefix:
+                continue
+            matched_maj, subcontent = strip_prefix(content, group.prefix, group.prefix_aliases)
+            if matched_maj and subcontent:
+                possible_commands = group.commands
+                content = subcontent
+                break
+        else:
+            possible_commands = [cmd for cmd in commands if all(not group.prefix or cmd not in group.commands for group in command_groups.values())]
+
+        for possible_command in possible_commands:
+            command = commands[possible_command]
+            matched_alias, _ = strip_prefix(content, command.name, command.aliases)
+            if matched_alias:
+                description = f"**Usage**: `{Config.prefix(context.platform)}{command.get_usage(strategize)}`\n\n{get_description(command)}\n\n**Examples**:"
+                examples = []
+                for _ in range(10):
+                    example = command.get_example_invocation()
+                    if example not in examples:
+                        examples.append(example)
+
+                    if len(examples) == 3:
+                        break
+
+                for example in sorted(examples, key=len):
+                    description += f"\n- `{Config.prefix(context.platform)}{example}`"
+
+                await context.reply("", [Embed(f"Help: {Config.prefix(context.platform)}{topic}", description)])
+                return
+
+        await context.reply(f"Error: `{topic}` is not a valid topic!")
 
 
     @hook_command("explain")

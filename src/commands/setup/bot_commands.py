@@ -1,4 +1,7 @@
-from ..generic import make_command, Argument, make_command_group, get_commands, get_command_groups, CommandGroup
+import random
+
+from ..generic import make_command, Argument, make_command_group, get_commands, get_command_groups, CommandGroup, \
+    Command
 from ..generic.strategies import OneOf, OptionList, Optional
 from ...backend.config import Config
 
@@ -159,28 +162,10 @@ def setup_help_command():
                 Argument(
                     "topic",
                     Optional(
-                        OneOf(
-                            OptionList(
-                                "command",
-                                {
-                                    cmd.canonical_name: cmd.aliases
-                                    for cmd in get_commands().values()
-                                } | {
-                                    "help": ["h", "?"]
-                                },
-                                True
-                            ),
-                            OptionList(
-                                "category",
-                                [
-                                    group.canonical_name
-                                    for group in get_command_groups().values()
-                                ],
-                                True
-                            )
-                        ),
+                        str,
                         None
-                    )
+                    ),
+                    lambda: random.choice([command.canonical_name for command in get_commands().values()] + [group.canonical_name for group in get_command_groups().values()]),
                 )
             ]
         )

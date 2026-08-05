@@ -159,17 +159,16 @@ async def get_command_awaitable(context: Context, prefixes: list[str]) -> tuple[
         if not group.prefix:
             continue
         matched_maj, subcontent = strip_prefix(content, group.prefix, group.prefix_aliases)
-        if matched_maj:
+        if matched_maj and subcontent:
             possible_commands = group.commands
             content = subcontent
             break
     else:
         possible_commands = [cmd for cmd in command_registry if all(not group.prefix or cmd not in group.commands for group in command_groups.values())]
 
-
     for possible_command in possible_commands:
         command = command_registry[possible_command]
-        matched_alias, arguments_raw = strip_prefix(content, command.canonical_name, command.aliases)
+        matched_alias, arguments_raw = strip_prefix(content, command.name, command.aliases)
         if matched_alias:
             arguments = await parse_command_arguments(arguments_raw, command.arguments, context)
             session_command_usages += 1
