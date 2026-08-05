@@ -6,7 +6,7 @@ from .specific import get_uid
 from ..backend.database import Database, UserPreference
 from ..backend.models import Proxy, ProxyTag
 from ..backend.template_utils import Template, TextPart
-from ..backend.utils import format_date
+from ..backend.utils import format_date, quote
 from ..interaction import Interactions, Interaction
 from ..service import Context, Embed, ReactionActionEvent
 from ..service.common import Permissions
@@ -25,28 +25,22 @@ def get_smart_pages[T](everything: list[T], function: Callable[[list[T]], tuple[
     return pages
 
 
-def get_groups_text(bunch: list[ProxyGroup], user_preference: UserPreference, detailed = False, length_limit = 4096) -> tuple[str, int]:
-    def list_fields(grp: ProxyGroup) -> str:
-        lns = []
-        if grp.tag:
-            lns.append(f"- Tag: `{grp.tag}`")
+def get_tags_text(bunch: list[ProxyTag], user_preference: UserPreference, detailed = False, length_limit = 4096) -> tuple[str, int]:
+    def list_fields(tag: ProxyTag) -> str:
+        lines = []
+        if tag.tag:
+            lines.append(f"- Marker: `{tag.tag}`")
         if user_preference.public_metadata or detailed:
-            lns.append(f"- Creation Date: {format_date(datetime.fromtimestamp(grp.creation_date))}")
-        if user_preference.public_description or detailed:
-            if grp.description:
-                lns.append("- Description:")
-                for ln in grp.description.split("\n"):
-                    lns.append(f"> {ln}")
-        if user_preference.public_group or detailed:
-            if grp.parent:
-                lns.append(f"- Parent Group: {grp.parent.name} (`{grp.parent.id}`)")
-        return "\n".join(lns)
+            lines.append(f"- Creation Date: {format_date(datetime.fromtimestamp(tag.creation_date))}")
+        if (user_preference.public_description or detailed) and tag.description:
+            lines.append(f"- Description:\n{quote(tag.description)}")
+        return "\n".join(lines)
 
     lines = []
     chars = 0
     i = 0
-    for i, group in enumerate(bunch):
-        line = f"**{group.name}** (`{group.id}`)\n{list_fields(group)}"
+    for i, tag in enumerate(bunch):
+        line = f"**{tag.name}** (`{tag.id}`)\n{list_fields(tag)}"
         if chars + len(line) > length_limit:
             if chars == 0:
                 return line[:length_limit - 3] + "...", 1
@@ -81,9 +75,7 @@ def get_proxies_text(bunch: list[Proxy], user_preference: UserPreference, detail
             lns.append(f"- Creation Date: {format_date(datetime.fromtimestamp(prox.creation_date))}")
         if user_preference.public_description or detailed:
             if prox.description:
-                lns.append("- Description:")
-                for ln in prox.description.split("\n"):
-                    lns.append(f"> {ln}")
+                lns.append(f"- Description:\n{quote(prox.description)}")
         return "\n".join(lns)
 
     lines = []
@@ -102,11 +94,11 @@ def get_proxies_text(bunch: list[Proxy], user_preference: UserPreference, detail
     return "\n\n".join(lines), i + 1
 
 
-async def paged_proxy_group_list(context: Context, groups: list[ProxyGroup], title: str, page: int, detailed: bool, additional_embeds: list[Embed] = None):
-    if not groups:
+async def paged_proxy_tag_list(context: Context, tags: list[ProxyTag], title: str, page: int, detailed: bool, additional_embeds: list[Embed] | None = None):
+    if not tags:
         await context.reply("", [Embed(
             f"{title} (0 total)",
-            f"It's as empty as a desert out here...\n\nTry running `{get_command_invocation('group register', context.platform)}` to get started!"
+            f"It's as empty as a desert out here...\n\nTry running `{get_command_invocation('tag register', context.platform)}` to get started!"
         )] + (additional_embeds or []))
         return
 
@@ -115,20 +107,20 @@ async def paged_proxy_group_list(context: Context, groups: list[ProxyGroup], tit
     if not (preferences.public_list or detailed):
         await context.reply("", [Embed(
             f"{title} (? total)",
-            f"This proxy group list cannot be viewed."
+            f"This proxy tag list cannot be viewed."
         )] + (additional_embeds or []))
         return
 
     pages = []
 
-    pages.extend(get_smart_pages(groups, lambda section: get_groups_text(section, preferences, detailed, 4096), limits=10))
+    pages.extend(get_smart_pages(tags, lambda section: get_tags_text(section, preferences, detailed, 4096), limits=10))
 
     await paged(
         context,
-        f"{title} ({len(groups)} total)",
+        f"{title} ({len(tags)} total)",
         pages,
         page,
-        additional_embeds
+        additional_embeds or []
     )
 
 
@@ -184,7 +176,7 @@ async def paged_proxy_list(context: Context, proxies: list[Proxy], title: str, p
     )
 
 
-async def paged(context: Context, title: str, pages: list[str], start_page: int, additional_embeds: list[Embed] = None):
+async def paged(context: Context, title: str, pages: list[str], start_page: int, additional_embeds: list[Embed] | None = None):
     LEFT, RIGHT = "⬅️", "➡️"
 
     author = context.author.id

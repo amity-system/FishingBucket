@@ -35,12 +35,12 @@ def setup():
                 await get_uid(context, True),
                 0,
                 datetime.now().timestamp(),
-                None,
+                "",
                 {},
-                None,
-                None,
+                "",
+                "",
                 [],
-                False
+                True
             )
         )
 

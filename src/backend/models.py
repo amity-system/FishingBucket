@@ -45,7 +45,7 @@ class ProxyTag:
             "name": self.name,
             "description": self.description,
             "creation_date": self.creation_date,
-            "tag": self.tag
+            "marker": self.tag
         }
 
 

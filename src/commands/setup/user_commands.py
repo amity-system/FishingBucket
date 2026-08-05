@@ -1,5 +1,5 @@
 from ..generic import make_command_group, make_command, Argument
-from ..generic.strategies import OneOf, Literal, List, OptionList, Optional, StringStrategy
+from ..generic.strategies import OneOf, Literal, List, OptionList
 
 
 def setup():
@@ -23,11 +23,11 @@ def setup():
             - Proxy and group description (`description`)
             - Proxy triggers (`triggers`)
             - Proxy and group metadata (`metadata`)
-            - Proxy groups (`groups`)
+            - Proxy tags (`tags`)
             - Proxy forms (`forms`)
             - Proxy pronouns (`pronouns`)
             - Spotlight (`spotlight`)
-            - Or, simply viewing your proxies and groups at all (`list`)
+            - Or, simply viewing your proxies and tags at all (`list`)
             
             Using proxy or group list commands in bot DMs will show private fields.
             """,
@@ -51,11 +51,11 @@ def setup():
             - Proxy and group description (`description`)
             - Proxy triggers (`triggers`)
             - Proxy and group metadata (`metadata`)
-            - Proxy groups (`groups`)
+            - Proxy tags (`tags`)
             - Proxy forms (`forms`)
             - Proxy pronouns (`pronouns`)
             - Spotlight (`spotlight`)
-            - Or, simply viewing your proxies and groups at all (`list`)
+            - Or, simply viewing your proxies and tags at all (`list`)
             
             Using proxy or group list commands in bot DMs will show private fields.
             """,
@@ -81,7 +81,7 @@ def setup():
                                     "description",
                                     "triggers",
                                     "metadata",
-                                    "groups",
+                                    "tags",
                                     "forms",
                                     "list",
                                     "pronouns",
@@ -101,7 +101,7 @@ def setup():
             "Initiates account linking procedure.",
             """
             Initiates account linking procedure.
-            The linked account and yours will share the same proxies, groups, and settings.
+            The linked account and yours will share the same proxies, tags, and settings.
             This command will generate a link code that is used to link another account with yours.
             """,
             []
@@ -114,7 +114,7 @@ def setup():
             "Finishes the account linking procedure.",
             """
             Finishes the account linking procedure.
-            Linked accounts will share the same proxies, groups, and settings.
+            Linked accounts will share the same proxies, tags, and settings.
             """,
             [
                 Argument(
@@ -155,7 +155,7 @@ def setup():
             "Deletes every information related to your account.",
             """
             Deletes every information related to your account. This action is **irreversible**!
-            Your account will cease to exist, and every proxy, group, user setting, connected account, and others will cease to exist with it!
+            Your account will cease to exist, and every proxy, tag, user setting, connected account, and others will cease to exist with it!
             """,
             []
         )

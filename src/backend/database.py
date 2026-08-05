@@ -560,7 +560,7 @@ class Database:
 
     async def put_tag(self, tag: ProxyTag) -> ProxyTag:
         cursor = await self.connection.execute(
-            "INSERT INTO proxy_groups (name, description, owner, creation_date, tag) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO proxy_tags (name, description, owner, creation_date, tag) VALUES (?, ?, ?, ?, ?)",
             (tag.name, tag.description, tag.owner, tag.creation_date, tag.tag)
         )
         await self.connection.commit()
@@ -610,7 +610,7 @@ class Database:
             (proxy_id,)
         )
         await self.connection.executemany(
-            "INSERT INTO proxy_tags_map (proxy_id, tags) VALUES (?, ?)",
+            "INSERT INTO proxy_tags_map (proxy_id, tag_id) VALUES (?, ?)",
             [(proxy_id, tag) for tag in tags]
         )
         if prox := await self.get_proxy(proxy_id):

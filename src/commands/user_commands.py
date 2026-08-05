@@ -26,7 +26,7 @@ def setup():
             "private_description": False,
             "private_trigger": False,
             "private_metadata": False,
-            "private_group": False,
+            "private_tags": False,
             "private_list": False,
             "private_forms": False,
             "private_pronouns": False,
@@ -40,7 +40,7 @@ def setup():
             "private_description": "description",
             "private_trigger": "triggers",
             "private_metadata": "metadata",
-            "private_group": "groups",
+            "private_tags": "tags",
             "private_list": "list",
             "private_forms": "forms",
             "private_pronouns": "pronouns",
@@ -58,13 +58,13 @@ def setup():
     @hook_command("privacy set")
     async def _(context: Context, status: Literal["private"] | Literal["public"], options: list[str] | Literal["all"]):
         if options == "all":
-            options = ["description", "triggers", "metadata", "groups", "list", "forms", "pronouns", "spotlight"]
+            options = ["description", "triggers", "metadata", "tags", "list", "forms", "pronouns", "spotlight"]
 
         m = {
             "description": "private_description",
             "triggers": "private_trigger",
             "metadata": "private_metadata",
-            "groups": "private_group",
+            "tags": "private_tags",
             "list": "private_list",
             "forms": "private_forms",
             "pronouns": "private_pronouns",

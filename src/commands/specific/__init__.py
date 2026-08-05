@@ -79,6 +79,12 @@ class ProxyStrategy(Strategy):
         return "proxy"
 
 
+PROXY_TAG_OPTIONS = [
+    '"My Tag Name"', 'proxytag', 'helpers', 'characters', 'oc', 'fronters', 'spotlight',
+    'frequent', 'webhook'
+]
+
+
 class ProxyTagStrategy(Strategy):
     def __init__(self, enforce_ownership: bool = True):
         self.enforce_ownership = enforce_ownership
@@ -86,45 +92,45 @@ class ProxyTagStrategy(Strategy):
     async def parse(self, stream: CharacterStream, argument: ParsingArgument, context: Context) -> ProxyTag:
         owner = await get_uid(context)
         try:
-            grp = await OneOf(hex, str).parse(stream, argument, context)
-            if isinstance(grp, int):
-                group = await Database.instance.get_tag(grp)
+            tg = await OneOf(hex, str).parse(stream, argument, context)
+            if isinstance(tg, int):
+                tag = await Database.instance.get_tag(tg)
 
-                if not group:
-                    raise ParseError("this proxy group does not exist")
+                if not tag:
+                    raise ParseError("this proxy tag does not exist")
 
-                if self.enforce_ownership and group.owner != owner:
-                    raise ParseError("you do not own this proxy group")
+                if self.enforce_ownership and tag.owner != owner:
+                    raise ParseError("you do not own this proxy tag")
 
             else:
-                norm_name = normalize_emojis(grp)
-                user_groups = await Database.instance.get_user_tags(owner)
-                if not user_groups:
-                    raise ParseError("you do not own any proxy groups")
+                norm_name = normalize_emojis(tg)
+                user_tags = await Database.instance.get_user_tags(owner)
+                if not user_tags:
+                    raise ParseError("you do not own any proxy tags")
 
                 distances = {
                     i: edit_distance(
                         norm_name.lower(), candidate.name.lower()
                     )
-                    for i, candidate in enumerate(user_groups)
+                    for i, candidate in enumerate(user_tags)
                 }
                 minimum_distance = min(distances.items(), key=lambda kv: kv[1])
                 if minimum_distance[1] > 5 or [*distances.values()].count(minimum_distance[1]) > 1:
-                    raise ParseError(f"cannot pinpoint a proxy group from its name")
+                    raise ParseError(f"cannot pinpoint a proxy tag from its name")
 
-                group = user_groups[minimum_distance[0]]
+                tag = user_tags[minimum_distance[0]]
 
-            return group
+            return tag
 
         except SyntaxParseError:
-            raise SyntaxParseError(f"not a valid proxy group ID nor a group name")
+            raise SyntaxParseError(f"not a valid proxy tag ID nor a tag name")
 
 
     def example(self) -> str:
-        return random.choice(["group", "\"proxy group name\"", HexadecimalStrategy().example()])
+        return random.choice(["tag", "\"proxy tag name\"", *PROXY_TAG_OPTIONS, HexadecimalStrategy().example()])
 
     def get_placeholder_text(self) -> str:
-        return "proxy group"
+        return "proxy tag"
 
 
 class TemplateStrategy(Strategy):

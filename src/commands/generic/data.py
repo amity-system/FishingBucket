@@ -83,7 +83,9 @@ class Argument:
 
 @dataclass
 class Command:
+    id: str
     canonical_name: str
+    name: str
     aliases: list[str]
     brief: str
     description: str
@@ -125,6 +127,8 @@ class CommandGroup:
     brief: str
     description: str
     commands: list[str]
+    prefix: str | None
+    prefix_aliases: list[str]
 
     def append(self, command: str):
         self.commands.append(command)

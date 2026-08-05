@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Coroutine, Any
+from typing import Callable, Coroutine, Any, Concatenate
 
 from .data import Command, Argument, CharacterStream, ParsingArgument, ParseError, CommandGroup
 from .strategies import strategize
@@ -11,10 +11,10 @@ from ...service import Context
 class EarlyExitException(Exception): pass
 
 
-type CommandCallable[Ctx] = Callable[[Ctx, ...], Coroutine[Any, Any, Any]]
+type CommandCallable[**P] = Callable[Concatenate[Context, P], Coroutine[Any, Any, Any]]
 
 command_registry: dict[str, Command] = {}
-command_hooks: dict[tuple[str, Platform], CommandCallable[Context]] = {}
+command_hooks: dict[tuple[str, Platform], CommandCallable] = {}
 command_groups: dict[str, CommandGroup] = {}
 session_command_usages: int = 0
 
@@ -23,35 +23,63 @@ def get_session_command_usages() -> int:
     return session_command_usages
 
 
+type with_alias = dict[str, list[str]]
+
+
 def make_command(
-        name: dict[str, list[str]] | str,
+        name: str | with_alias | dict[str, str] | dict[str, with_alias],
         brief: str,
         description: str,
-        arguments: list[Argument]
+        arguments: list[Argument],
 ) -> str:
     global command_registry
 
+    command_id: str
+    n: str
+    aliases: list[str]
+
     if isinstance(name, dict):
-        n = [*name.keys()][0]
-        aliases = name[n]
+        command_id = [*name.keys()][0]
+        possible_aliases = name[command_id]
+        if isinstance(possible_aliases, list):
+            aliases = possible_aliases
+            n = command_id
+        else:
+            if isinstance(possible_aliases, dict):
+                n = [*possible_aliases.keys()][0]
+                aliases = possible_aliases[n]
+            else:
+                n = possible_aliases
+                aliases = []
     else:
         n = name
+        command_id = n
         aliases = []
 
-    command = Command(n, aliases, brief, description, arguments)
-    command_registry[n] = command
+    command = Command(command_id, command_id, n, aliases, brief, description, arguments)
+    command_registry[command_id] = command
 
     command_registry = dict(sorted(command_registry.items(), key=lambda kv: len(kv[0]), reverse=True))
 
-    return n
+    return command_id
 
 
 def make_command_group(
         identifier: str,
         brief: str,
-        description: str
+        description: str,
+        prefix: str | dict[str, list] | None = None
 ) -> CommandGroup:
-    group = CommandGroup(identifier, brief, description, [])
+    pre: str | None = None
+    ali: list[str] = []
+
+    if isinstance(prefix, str):
+        pre = prefix
+    elif isinstance(prefix, dict):
+        pre = [*prefix.keys()][0]
+        ali = [*prefix.values()][0]
+
+    group = CommandGroup(identifier, brief, description, [], pre, ali)
     command_groups[identifier] = group
     return group
 
@@ -68,11 +96,11 @@ def get_command_groups() -> dict[str, CommandGroup]:
     return command_groups
 
 
-def hook_command[Ctx = Context](name: str, platform: Platform | None = None) -> Callable[[CommandCallable[Ctx]], None]:
+def hook_command[**P](name: str, platform: Platform | None = None) -> Callable[[CommandCallable[P]], None]:
     if name not in command_registry:
         raise KeyError(f"Command {name!r} not found.")
 
-    def wrap(inner: CommandCallable[Ctx]):
+    def wrap(inner: CommandCallable[P]):
         sig = inspect.signature(inner)
         arg_count = len(sig.parameters)
         cmd = command_registry[name]
@@ -110,16 +138,41 @@ async def parse_command_arguments(clean_string: str, arguments: list[Argument], 
     return results
 
 
+def strip_prefix(text: str, prefix: str, aliases: list[str], check_space: bool = True) -> tuple[str | None, str]:
+    key = [prefix] + [*sorted([alias.lower() for alias in aliases], key=len, reverse=True)]
+    key = [k for k in key if k]
+    if any(text.lower().startswith((matched_prefix := a).lower()) for a in key):
+        trimmed = text[len(matched_prefix):]
+        if not check_space or trimmed == "" or trimmed[0] == " ":
+            return matched_prefix, trimmed.strip()
+    return None, ""
+
+
 async def get_command_awaitable(context: Context, prefixes: list[str]) -> tuple[tuple[str, list], Coroutine[Any, Any, Any]] | None:
     global session_command_usages
-    for prefix in prefixes:
-        if context.content.startswith(prefix):
-            sans_prefix = context.content[len(prefix):].strip()
-            for name, command in command_registry.items():
-                if any(sans_prefix.lower().startswith((matched_name := a).lower()) for a in [name] + [*sorted([alias.lower() for alias in command.aliases], key=len, reverse=True)]):
-                    command_part = sans_prefix[len(matched_name):]
-                    if command_part == "" or command_part[0] == " ":
-                        arguments = await parse_command_arguments(command_part.strip(), command.arguments, context)
-                        session_command_usages += 1
-                        return (name, arguments), command_hooks[name, context.platform](context, *arguments)
+    used_prefix, content = strip_prefix(context.content, "", prefixes, False)
+    if not used_prefix:
+        return None
+
+    possible_commands: list[str]
+    for group in command_groups.values():
+        if not group.prefix:
+            continue
+        matched_maj, subcontent = strip_prefix(content, group.prefix, group.prefix_aliases)
+        if matched_maj:
+            possible_commands = group.commands
+            content = subcontent
+            break
+    else:
+        possible_commands = [cmd for cmd in command_registry if all(not group.prefix or cmd not in group.commands for group in command_groups.values())]
+
+
+    for possible_command in possible_commands:
+        command = command_registry[possible_command]
+        matched_alias, arguments_raw = strip_prefix(content, command.canonical_name, command.aliases)
+        if matched_alias:
+            arguments = await parse_command_arguments(arguments_raw, command.arguments, context)
+            session_command_usages += 1
+            return (possible_command, arguments), command_hooks[possible_command, context.platform](context, *arguments)
+
     return None

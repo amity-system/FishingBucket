@@ -1,20 +1,27 @@
-from ..generic import make_command, Argument, make_command_group, get_commands, get_command_groups, CommandGroup
-from ..generic.strategies import OneOf, OptionList, Optional, List, RangeStrategy, IntegerStrategy
+from ..generic import make_command, Argument, make_command_group
+from ..generic.strategies import Optional, List, IntegerStrategy
 from ..specific import ProxyStrategy
-from ...backend.config import Config
 
 def setup():
     spotlight_group = make_command_group(
         "spotlight_commands",
         "Spotlight Commands",
-        "Commands that configures the spotlight list."
+        "Commands that configures the spotlight list.",
+        {
+            "spotlight": [
+                "spot",
+                "front",
+                "switch",
+                "switches"
+            ]
+        }
     )
 
     spotlight_group.append(make_command(
         {
-            "spotlight list": [
-                "spot list", "front list"
-            ]
+            "spotlight list": {
+                "list": ["l"]
+            }
         },
         "Shows your current spotlight.",
         """
@@ -25,9 +32,11 @@ def setup():
 
     spotlight_group.append(make_command(
         {
-            "spotlight set": [
-                "spot set", "front set", "switch"
-            ]
+            "spotlight set": {
+                "set": [
+                    "="
+                ]
+            }
         },
         "Sets your current spotlight.",
         """
@@ -50,9 +59,12 @@ def setup():
 
     spotlight_group.append(make_command(
         {
-            "spotlight add": [
-                "spot add", "front add", "spot push"
-            ]
+            "spotlight add": {
+                "add": [
+                    "push",
+                    "+"
+                ]
+            }
         },
         "Adds a proxy to your current spotlight.",
         """
@@ -68,9 +80,11 @@ def setup():
 
     spotlight_group.append(make_command(
         {
-            "spotlight clear": [
-                "spot clear", "front clear", "switch out"
-            ]
+            "spotlight clear": {
+                "clear": [
+                    "out"
+                ]
+            }
         },
         "Clears your current spotlight list.",
         """
@@ -81,9 +95,11 @@ def setup():
 
     spotlight_group.append(make_command(
         {
-            "spotlight pop": [
-                "spot pop", "front pop"
-            ]
+            "spotlight pop": {
+                "pop": [
+                    "-"
+                ]
+            }
         },
         "Removes the last entered spotlight proxy.",
         """
@@ -94,9 +110,11 @@ def setup():
 
     spotlight_group.append(make_command(
         {
-            "spotlight insert": [
-                "spot insert", "front insert"
-            ]
+            "spotlight insert": {
+                "insert": [
+                    "ins"
+                ]
+            }
         },
         "Inserts a proxy into the current spotlight.",
         """

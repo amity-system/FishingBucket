@@ -3,7 +3,7 @@ import random
 from ..generic import make_command_group, make_command, Argument
 from ..generic.misc import lorem_ipsum
 from ..generic.strategies import URLStrategy, Optional, OptionList, List, StringStrategy, Sequence
-from ..specific import ProxyStrategy, TemplateStrategy
+from ..specific import ProxyStrategy, TemplateStrategy, ProxyTagStrategy
 
 
 def setup():
@@ -212,6 +212,43 @@ def setup():
                     Optional(
                         StringStrategy("MEDIUM"),
                         None
+                    )
+                )
+            ]
+        )
+    )
+
+    proxact_group.append(
+        make_command(
+            {
+                "set tags": [
+                    "set tag",
+                    "tags"
+                ]
+            },
+            "Updates a proxy's tags.",
+            """
+            Updates a proxy's tags.
+            """,
+            [
+                Argument(
+                    "proxy",
+                    ProxyStrategy()
+                ),
+                Argument(
+                    "mode",
+                    OptionList(
+                        None,
+                        {
+                            "add": ["+"],
+                            "remove": ["rem", "rm", "-"]
+                        }
+                    )
+                ),
+                Argument(
+                    "tags",
+                    List(
+                        ProxyTagStrategy()
                     )
                 )
             ]

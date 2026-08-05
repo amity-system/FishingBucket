@@ -4,9 +4,9 @@ from .generic import hook_command
 from .specific import get_uid
 from .utils import example_trigger_text
 from ..backend.database import Database
-from ..backend.models import Proxy
+from ..backend.models import Proxy, ProxyTag
 from ..backend.template_utils import Template
-from ..backend.utils import normalize_emojis
+from ..backend.utils import normalize_emojis, quote
 from ..interaction import Interactions, Interaction
 from ..service import Context, ReactionActionEvent, Embed
 
@@ -112,7 +112,7 @@ def setup():
             embed = Embed(
                 "Proxy Updated!",
                 f"The description for {proxy.name} has been changed! New description:\n" +
-                "\n".join("> " + line for line in new_description.split("\n"))
+                quote(new_description)
             )
         else:
             embed = Embed(
@@ -120,6 +120,30 @@ def setup():
                 f"The description for {proxy.name} has been cleared!"
             )
         await context.reply("", [embed])
+
+
+    @hook_command("set tags")
+    async def _(context: Context, proxy: Proxy, mode: Literal["add"] | Literal["remove"], tags: list[ProxyTag]) -> None:
+        if mode == "add":
+            for tag in tags:
+                if tag not in proxy.tags:
+                    proxy.tags.append(tag)
+        if mode == "remove":
+            for tag in tags:
+                if tag in proxy.tags:
+                    proxy.tags.remove(tag)
+
+        mod = "changed" if proxy.tags else "cleared"
+        more = ""
+        if proxy.tags:
+            more = f" Tags: **{'**, **'.join(tag.name for tag in proxy.tags)}**"
+
+        await Database.instance.update_tags(proxy.id, [tag.id for tag in proxy.tags])
+
+        await context.reply("", [Embed(
+            "Proxy Updated!",
+            f"The tags for {proxy.name} has been {mod}!{more}"
+        )])
 
 
     @hook_command("set forms")

@@ -176,7 +176,7 @@ def setup():
                         OptionList(None, {
                             "latch": ["l"],
                             "spotlight": ["spot", "front"]
-                        }),
+                        }, True),
                         bool,
                         ProxyStrategy()
                     )
@@ -213,7 +213,9 @@ def setup():
 
     proxy_commands.append(
         make_command(
-            "who",
+            {
+                "who": ["showuser"]
+            },
             "Shows you information about a proxied message.",
             """
             Shows you information about a proxied message.

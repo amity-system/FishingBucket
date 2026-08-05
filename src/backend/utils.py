@@ -7,13 +7,15 @@ from ..service import Attachment, File, Embed
 
 
 def format_date(dt: datetime):
-    day = dt.day
-    if 4 <= day <= 20 or 24 <= day <= 30:
-        suffix = "th"
-    else:
-        suffix = ["st", "nd", "rd"][day % 10 - 1]
+    return f"<t:{int(dt.timestamp())}:d>"
 
-    return dt.strftime(f"%b {day}{suffix} %Y")
+    # day = dt.day
+    # if 4 <= day <= 20 or 24 <= day <= 30:
+    #     suffix = "th"
+    # else:
+    #     suffix = ["st", "nd", "rd"][day % 10 - 1]
+
+    # return dt.strftime(f"%b {day}{suffix} %Y")
 
 
 valid_url = re.compile(r"https?://(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)")
@@ -56,3 +58,5 @@ def roll_dice(string: str, get_global_environment, set_global_environment) -> tu
         ret = "error"
     return ret, embed
 
+def quote(text: str) -> str:
+    return text and "\n".join(("> " + line) for line in text.split("\n"))
