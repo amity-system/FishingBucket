@@ -129,17 +129,17 @@ def setup():
         if len(inserted_proxy_instances) > 20:
             proxies_text += f"\n...... and {len(inserted_proxy_instances) - 20} more"
 
-        groups_text = "\n".join(
+        tags_text = "\n".join(
             f"- **{t.name}** (`{t.id}`)" for t in inserted_tag_instances[:min(len(inserted_tag_instances), 20)]
         ) or "- No tags were added!"
 
         if len(inserted_tag_instances) > 20:
-            groups_text += f"\n...... and {len(inserted_tag_instances) - 20} more"
+            tags_text += f"\n...... and {len(inserted_tag_instances) - 20} more"
 
         await confirmation.reply("", embeds=[
             Embed(
                 f"{context.author.display_name}'s New Imports",
-                f"New proxies:\n{proxies_text}\n\nNew tags:\n{groups_text}"
+                f"New proxies:\n{proxies_text}\n\nNew tags:\n{tags_text}"
             )
         ])
 

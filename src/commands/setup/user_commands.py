@@ -20,16 +20,16 @@ def setup():
             """
             Lists your privacy settings.
             The options for privacy are:
-            - Proxy and group description (`description`)
+            - Proxy and tag description (`description`)
             - Proxy triggers (`triggers`)
-            - Proxy and group metadata (`metadata`)
+            - Proxy and tag metadata (`metadata`)
             - Proxy tags (`tags`)
             - Proxy forms (`forms`)
             - Proxy pronouns (`pronouns`)
             - Spotlight (`spotlight`)
             - Or, simply viewing your proxies and tags at all (`list`)
             
-            Using proxy or group list commands in bot DMs will show private fields.
+            Using proxy or tag list commands in bot DMs will show private fields.
             """,
             []
         )
@@ -48,16 +48,16 @@ def setup():
             Sets your privacy settings.
             `status` will set the provided options public/private.
             The support options for privacy are:
-            - Proxy and group description (`description`)
+            - Proxy and tag description (`description`)
             - Proxy triggers (`triggers`)
-            - Proxy and group metadata (`metadata`)
+            - Proxy and tag metadata (`metadata`)
             - Proxy tags (`tags`)
             - Proxy forms (`forms`)
             - Proxy pronouns (`pronouns`)
             - Spotlight (`spotlight`)
             - Or, simply viewing your proxies and tags at all (`list`)
             
-            Using proxy or group list commands in bot DMs will show private fields.
+            Using proxy or tag list commands in bot DMs will show private fields.
             """,
             [
                 Argument(

@@ -378,7 +378,7 @@ def setup():
             "nuke",
             "Deletes every proxy associated with your account.",
             """
-            Deletes every proxy and proxy group associated with your account.
+            Deletes every proxy and proxy tag associated with your account.
             This does not delete your account fully.
             This action is irreversible! Make sure you really want to do this!
             """,

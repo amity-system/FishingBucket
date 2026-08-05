@@ -31,10 +31,10 @@ async def _(session: Session = Depends(require_session)) -> list[Proxy]:
 async def _(session: Session = Depends(require_session)) -> list[ProxyTag]:
     if session.user_id == -1:
         return []
-    groups = await app.context.database.get_user_tags(session.user_id)
-    return [ProxyTag.from_source(group) for group in groups]
+    tags = await app.context.database.get_user_tags(session.user_id)
+    return [ProxyTag.from_source(tag) for tag in tags]
 
-@router.get("/tag/{group_id}", response_model=ProxyTag)
+@router.get("/tag/{tag_id}", response_model=ProxyTag)
 async def _(tag_id: int, session: Session = Depends(require_session)) -> ProxyTag:
     tag = await app.context.database.get_tag(tag_id)
     if tag and session.user_id == tag.owner:

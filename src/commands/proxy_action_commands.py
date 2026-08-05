@@ -239,13 +239,13 @@ def setup():
     async def _(context: Context):
         owner = await get_uid(context)
         proxies = await Database.instance.get_user_proxies(owner)
-        groups = await Database.instance.get_user_groups(owner)
+        tags = await Database.instance.get_user_tags(owner)
 
-        if not proxies and not groups:
-            await context.reply("You have no proxies nor proxy groups to delete!")
+        if not proxies and not tags:
+            await context.reply("You have no proxies nor proxy tags to delete!")
             return
 
-        m = await context.reply(f"> [!CAUTION]\n> Are you sure you want to nuke **all of your {len(proxies)} proxies and {len(groups)} groups**? React to the :white_check_mark: to confirm. This message will expire in 10 seconds.")
+        m = await context.reply(f"> [!CAUTION]\n> Are you sure you want to nuke **all of your {len(proxies)} proxies and {len(tags)} tags**? React to the :white_check_mark: to confirm. This message will expire in 10 seconds.")
         await m.message.add_reaction("✅")
 
         async def cb(event: ReactionActionEvent) -> bool:

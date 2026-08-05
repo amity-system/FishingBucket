@@ -70,7 +70,7 @@ def setup():
             "Generates an export of your data.",
             """
             Generates an export of your data.
-            This includes everything to re-import the proxies and groups back into the bot.
+            This includes everything to re-import the proxies and tags back into the bot.
             This format is **not compatible** with any other software.
             """,
             []

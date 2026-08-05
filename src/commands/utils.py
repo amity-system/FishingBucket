@@ -52,10 +52,10 @@ def get_tags_text(bunch: list[ProxyTag], user_preference: UserPreference, detail
     return "\n\n".join(lines), i + 1
 
 
-def get_proxies_text(bunch: list[Proxy], user_preference: UserPreference, detailed = False, length_limit = 4096, display_group: bool = True) -> tuple[str, int]:
+def get_proxies_text(bunch: list[Proxy], user_preference: UserPreference, detailed = False, length_limit = 4096, display_tags: bool = True) -> tuple[str, int]:
     def list_fields(prox: Proxy) -> str:
         lns = []
-        if (user_preference.public_tags or detailed) and display_group:
+        if (user_preference.public_tags or detailed) and display_tags:
             lns.append(f"- Tags: *{'*, *'.join(tag.name for tag in prox.tags) if prox.tags else 'N/A'}*")
         if user_preference.public_trigger or detailed:
             lns.append(f"- Triggers: {', '.join(f'`{trigger}`' for trigger in prox.triggers) if prox.triggers and any(bool(t) for t in prox.triggers) else '*N/A*'}")
@@ -124,7 +124,7 @@ async def paged_proxy_tag_list(context: Context, tags: list[ProxyTag], title: st
     )
 
 
-async def paged_proxy_list(context: Context, proxies: list[Proxy], title: str, page: int, detailed: bool, additional_embeds: list[Embed] = None, show_groups: bool = True):
+async def paged_proxy_list(context: Context, proxies: list[Proxy], title: str, page: int, detailed: bool, additional_embeds: list[Embed] = None, show_tags: bool = True):
     if not proxies:
         await context.reply("", [Embed(
             f"{title} (0 total)",
@@ -142,7 +142,7 @@ async def paged_proxy_list(context: Context, proxies: list[Proxy], title: str, p
         return
 
     pages = []
-    if (preferences.public_tags or detailed) and show_groups:
+    if (preferences.public_tags or detailed) and show_tags:
         all_tags: set[ProxyTag] = set()
         for proxy in proxies:
             for tag in proxy.tags:

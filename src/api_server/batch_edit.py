@@ -61,13 +61,13 @@ async def handle_batch_edit(batch_edit: BatchEdit, owner: int, database: Databas
     for delete_proxy_edit in filter_edit_type(batch_edit.edits, DeleteProxyEdit):
         await ensure_proxy(delete_proxy_edit.proxy_id)
 
-    for delete_proxy_group_edit in filter_edit_type(batch_edit.edits, DeleteProxyTagEdit):
-        await ensure_tag(delete_proxy_group_edit.tag_id)
+    for delete_proxy_tag_edit in filter_edit_type(batch_edit.edits, DeleteProxyTagEdit):
+        await ensure_tag(delete_proxy_tag_edit.tag_id)
 
-    for new_proxy_group_edit in filter_edit_type(batch_edit.edits, NewProxyTagEdit):
-        ensure_new(new_proxy_group_edit.tag)
-        assert isinstance(new_proxy_group_edit.tag.id, EphemeralID)
-        encountered_ephemeral_ids.append(ID(new_proxy_group_edit.tag.id.index, "PROXY_TAG"))
+    for new_proxy_tag_edit in filter_edit_type(batch_edit.edits, NewProxyTagEdit):
+        ensure_new(new_proxy_tag_edit.tag)
+        assert isinstance(new_proxy_tag_edit.tag.id, EphemeralID)
+        encountered_ephemeral_ids.append(ID(new_proxy_tag_edit.tag.id.index, "PROXY_TAG"))
 
     for new_proxy_edit in filter_edit_type(batch_edit.edits, NewProxyEdit):
         ensure_new(new_proxy_edit.proxy)
