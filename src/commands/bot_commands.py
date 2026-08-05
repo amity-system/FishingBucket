@@ -1,3 +1,5 @@
+import platform
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -121,38 +123,32 @@ def setup():
     @hook_command("stats")
     async def _(context: Context, stat: str | None):
         cache_efficiency_denominator = CacheStatus.instance.hits + CacheStatus.instance.misses
-        all_stats: dict[str, Any] = await Database.instance.get_global_stats()
-        all_stats.update({
-            "uptime": datetime.now() - start_time,
-            "guilds": len(context.bot.guilds),
-            "cache_efficiency": (CacheStatus.instance.hits / cache_efficiency_denominator) if cache_efficiency_denominator != 0 else 1,
-            "invocations": get_session_command_usages(),
-            "commands": len(get_commands())
-        })
-        all_stats["uptime"] = datetime.now() - start_time
-        mapping = {
-            "guilds": ("Total community count", lambda n: int(n)),
-            "uptime": ("Uptime", lambda td: td),
-            "commands": ("Total commands", lambda n: int(n)),
-            "proxy_uses": ("Total proxy uses", lambda n: int(n)),
-            "total_proxies": ("Total registered proxies", lambda n: int(n)),
-            "cache_efficiency": ("Cache efficiency", lambda n: f"{n * 100:.2f}%"),
-            "invocations": ("Session command invocations", lambda n: int(n)),
-            "version": ("Database version", lambda n: int(n))
+        cache_efficiency = (CacheStatus.instance.hits / cache_efficiency_denominator) if cache_efficiency_denominator != 0 else 1
+
+        db_stats: dict[str, Any] = await Database.instance.get_global_stats()
+        stats = {
+            "guilds": ("Total community count", str(len(context.bot.guilds))),
+            "uptime": ("Uptime", str(datetime.now() - start_time)),
+            "commands": ("Total commands", str(len(get_commands()))),
+            "proxy_uses": ("Total proxy uses", str(int(db_stats["proxy_uses"]))),
+            "total_proxies": ("Total registered proxies", str(int(db_stats["total_proxies"]))),
+            "cache_efficiency": ("Cache efficiency", f"{cache_efficiency * 100:.2f}%"),
+            "invocations": ("Session command invocations", str(get_session_command_usages())),
+            "database_version": ("Database version", str(int(db_stats["version"]))),
+            "version": ("Code version", DataReader.instance["last_commit"]),
+            "system": ("System", f"{platform.system()} {platform.release()} {platform.version()} {platform.machine()}"),
+            "framework": ("Framework", f"custom (using fluxer.py + py-cord) w/ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         }
         if stat:
-            if stat in all_stats:
-                m = mapping.get(stat, (stat, lambda n: str(n)))
-                await context.reply("", embeds=[Embed(
-                    f"{Config.name()} Statistics",
-                    f"**{m[0]}** (`{stat}`): {m[1](all_stats[stat])}"
-                )])
-            else:
-                await context.reply(f"Error! `{stat}` is not recognized as a tracked statistic!")
+            k, v = stats[stat]
+            await context.reply("", embeds=[Embed(
+                f"{Config.name()} Statistics",
+                f"**{k}** (`{stat}`): {v}"
+            )])
         else:
             await context.reply("", embeds=[Embed(
                 f"{Config.name()} Statistics",
-                "\n".join(f"**{(m := mapping.get(stat, (stat, lambda n: str(n))))[0]}** (`{stat}`): {m[1](all_stats[stat])}" for stat in all_stats)
+                "\n".join(f"**{k}** (`{stat}`): {v}" for stat, (k, v) in stats.items())
             )])
 
 

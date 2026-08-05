@@ -6,8 +6,8 @@ To remove a proxy, use `{prefix}remove`!
 
 **Command Structure**
 - *Arguments*: In `{prefix}help`, you will see stuff like `<proxy: proxy>` and `[description: string]`. These are called **command arguments**, and it is used to pass information to the commands. Angle brackets (i.e., `<like this>`) are **required**, while square brackets (i.e., `[like this]`) are **optional**.
-- *Proxies* and *Groups*: In some commands (e.g., `{prefix}register`), you will see arguments that require a proxy or a group. They can be provided by either entering the proxy/group's **ID**, or its **name**. Names are matched through [edit distance](https://en.wikipedia.org/wiki/Edit_distance).
-- *IDs*: IDs are hexadecimal numbers (shown like `0x123abf`) written next to the name in some command outputs. They help pinpoint what proxy or group you are targeting. Use IDs if you don't trust the name input, or if you have proxies/groups with duplicated names.
+- *Proxies* and *Tags*: In some commands (e.g., `{prefix}register`), you will see arguments that require a proxy or a tag. They can be provided by either entering the proxy/tag's **ID**, or its **name**. Names are matched through [edit distance](https://en.wikipedia.org/wiki/Edit_distance).
+- *IDs*: IDs are hexadecimal numbers (shown like `0x123abf`) written next to the name in some command outputs. They help pinpoint what proxy or tag you are targeting. Use IDs if you don't trust the name input, or if you have proxies/tags with duplicated names.
 
 **Tips**:
 - React to a proxied message that you've sent with :x: to delete it!

@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+import subprocess
 
 
 class DataReader:
@@ -27,8 +28,21 @@ class DataReader:
     def load_data(self):
         self.loaded_files = {}
         self.load_data_directory(self.data_directory, "")
+        self.load_extra()
 
     def __getitem__(self, item: str) -> Any:
         if item in self.loaded_files:
             return self.loaded_files[item]
         raise KeyError(f"Data file {item!r} is not found. Data directory is configured to {self.data_directory!r}.")
+
+
+    def load_extra(self):
+        # git hash
+        try:
+            commit_hash = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            ).strip().decode("utf-8")
+        except subprocess.CalledProcessError:
+            commit_hash = "unknown"
+        self.loaded_files["last_commit"] = commit_hash

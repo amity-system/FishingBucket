@@ -67,7 +67,10 @@ def setup():
                                 "cache_efficiency",
                                 "command_count",
                                 "invocations",
-                                "version"
+                                "database_version",
+                                "version",
+                                "system",
+                                "framework"
                             ]
                         ),
                         None
