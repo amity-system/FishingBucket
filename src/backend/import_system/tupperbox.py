@@ -47,7 +47,7 @@ class TupperboxImporter(Importer):
                 group.description or "",
                 owner,
                 time.time(),
-                group.tag or ""
+                ("{} " + group.tag) if group.tag else ""
             )
             tag_mapping[group.id] = t
             self.tags.append(t)
@@ -80,7 +80,7 @@ class TupperboxImporter(Importer):
                 {},
                 "",
                 "",
-                [self.tags[tupper.group_id]] if tupper.group_id else [],
+                [tag_mapping[tupper.group_id]] if tupper.group_id else [],
                 True
             )
 

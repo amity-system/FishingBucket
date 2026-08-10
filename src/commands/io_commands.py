@@ -116,8 +116,8 @@ def setup():
             else:
                 inserted_proxy_instances.append(await Database.instance.put_proxy(proxy))
 
-        inserted_proxies = len(cls.proxies) - updated_proxies
-        inserted_tags = len(cls.tags) - updated_tags
+        inserted_proxies = len(inserted_proxy_instances)
+        inserted_tags = len(inserted_tag_instances)
 
         await confirmation.message.edit(
             f"Proxies loaded! Updated {updated_proxies} proxies and {updated_tags} tags, and inserted {inserted_proxies} new proxies and {inserted_tags} new tags!")

@@ -542,7 +542,7 @@ class Database:
     async def put_proxy(self, proxy: Proxy) -> Proxy:
         proxy.triggers = [t for t in proxy.triggers if t]
         cursor = await self.connection.execute(
-            "INSERT INTO proxies (name, description, avatar_url, trigger, owner, times_used, creation_date, nickname, proxy_forms, current_form, pronouns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO proxies (name, description, avatar_url, triggers, owner, times_used, creation_date, nickname, proxy_forms, current_form, pronouns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (proxy.name, proxy.description, proxy.avatar_url, "\n".join(proxy.triggers), proxy.owner, proxy.times_used, time.time(), proxy.nickname, json.dumps(proxy.forms), proxy.current_form, proxy.pronouns)
         )
         await self.connection.commit()
@@ -553,7 +553,8 @@ class Database:
         await self.set_global_data("total_proxies", "value + 1", 1)
 
         for tag in proxy.tags:
-            await self.put_tag(tag)
+            if tag.id is None:
+                await self.put_tag(tag)
 
         await self.update_tags(proxy.id, [tag.id for tag in proxy.tags])
 
@@ -639,7 +640,7 @@ class Database:
     async def update_trigger(self, id_: int, triggers: list[str]):
         norm = [t for t in triggers if t]
         await self.connection.execute(
-            "UPDATE proxies SET trigger = ? WHERE id = ?",
+            "UPDATE proxies SET triggers = ? WHERE id = ?",
             ("\n".join(norm), id_)
         )
         if prox := await self.get_proxy(id_):
