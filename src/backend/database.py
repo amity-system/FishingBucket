@@ -40,7 +40,7 @@ class UserPreference:
     private_description: bool
     private_trigger: bool
     private_metadata: bool
-    private_tags: bool
+    private_proxy_tags: bool
     private_list: bool
     private_forms: bool
     dice_functions: bytes
@@ -68,7 +68,7 @@ class UserPreference:
         return tup[0:8] + (json.dumps(tup[8]),) + tup[9:]
 
     def as_tuple(self) -> tuple[bool, bool, bool, bool, bool, bool, bytes, bool, list[int], bool]:
-        return (self.private_description, self.private_trigger, self.private_metadata, self.private_tags,
+        return (self.private_description, self.private_trigger, self.private_metadata, self.private_proxy_tags,
                 self.private_list, self.private_forms, self.dice_functions, self.private_pronouns, self.spotlight, self.private_spotlight)
 
     @property
@@ -81,7 +81,7 @@ class UserPreference:
     def public_metadata(self) -> bool: return not self.private_metadata
 
     @property
-    def public_tags(self) -> bool: return not self.private_tags
+    def public_tags(self) -> bool: return not self.private_proxy_tags
 
     @property
     def public_list(self) -> bool: return not self.private_list
@@ -310,7 +310,7 @@ class Database:
             private_description: bool | None = None,
             private_trigger: bool | None = None,
             private_metadata: bool | None = None,
-            private_tags: bool | None = None,
+            private_proxy_tags: bool | None = None,
             private_list: bool | None = None,
             private_forms: bool | None = None,
             dice_functions: bytes | None = None,
@@ -324,7 +324,7 @@ class Database:
             "private_description": (private_description, False),
             "private_trigger": (private_trigger, False),
             "private_metadata": (private_metadata, False),
-            "private_tags": (private_tags, False),
+            "private_proxy_tags": (private_proxy_tags, False),
             "private_list": (private_list, False),
             "private_forms": (private_forms, False),
             "dice_functions": (dice_functions, b""),
@@ -339,7 +339,7 @@ class Database:
             return
 
         prefs = await self.get_user_preferences(user_id)
-        true_compare_list = (private_description, private_trigger, private_metadata, private_tags, private_list, private_forms, dice_functions, private_pronouns, spotlight_str, private_spotlight)
+        true_compare_list = (private_description, private_trigger, private_metadata, private_proxy_tags, private_list, private_forms, dice_functions, private_pronouns, spotlight_str, private_spotlight)
         true_compare_list = tuple((a if a is not None else b for a, b in zip(true_compare_list, prefs.to_database())))
         if prefs != true_compare_list:
             await self.connection.execute(*upsert_query("user_settings", "user_id", user_id, names, changes, values))
