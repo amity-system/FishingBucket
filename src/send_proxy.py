@@ -45,6 +45,38 @@ async def get_first_spotlight_proxies(uid: int) -> Proxy | None:
     return None
 
 
+def is_replace(content: str) -> tuple[re.Pattern, str, bool] | None:
+    if not content.startswith("\\s/"):
+        return None
+    content = content[len("\\s/"):]
+    replacer = ""
+    sub = ""
+    global_ = False
+    if content.endswith("/g"):
+        global_ = True
+        content = content[:-len("/g")]
+    parsing = 0
+    escape = False
+    for i, char in enumerate(content):
+        if not escape and char == "/" and parsing == 0:
+            parsing = 1
+            continue
+        if char == "\\" and i < len(content) - 1 and content[i + 1] == "/":
+            escape = True
+            continue
+        if parsing == 0:
+            replacer += char
+        elif parsing == 1:
+            sub += char
+    try:
+        return re.compile(replacer, re.MULTILINE), sub, global_
+    except re.PatternError:
+        return None
+
+
+def do_replace(replace: tuple[re.Pattern, str, bool], old_content: str) -> str:
+    return replace[0].sub(replace[1], old_content, int(not replace[2]))
+
 
 async def get_proxied_messages(message: str, user_id: int, autoproxy_preferences: UserAutoproxyPreference | None) -> list[tuple[Proxy, str]]:
     res: list[tuple[Proxy, str]] = []
@@ -238,6 +270,23 @@ async def on_user_message(context: Context):
             context.author.id
     ):
         autoproxy_prefs = await Database.instance.get_autoproxy_preference(owner, guild)
+
+        replace = is_replace(context.content)
+        if replace:
+            message_id = await Database.instance.get_latest_proxy_message_from_user(context.channel.id, owner, context.platform)
+            if (message := await context.channel.get_message(message_id)) is None or not message_id:
+                return
+            message_link: MessageLink = await Database.instance.get_message_link(message_id, context.channel.id)
+            webhook: Webhook = await get_webhook(message.context)
+            new_context = await webhook.get_message_data(message.context)
+            await edit_proxy_message(
+                message.context,
+                do_replace(replace, new_context.content),
+                message_link,
+                (await Database.instance.get_proxy(message_link.proxy_id)).owner
+            )
+            await context.message.delete()
+            return
 
         print(f"Message [{hash(context.message)}] trying to match")
         proxied = await get_proxied_messages(context.content, owner, autoproxy_prefs)
