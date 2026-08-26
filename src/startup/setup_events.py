@@ -8,7 +8,7 @@ from ..backend.database import Database
 from ..backend.logging import start_log
 from ..backend.models import Platform
 from ..interaction import Interactions
-from ..send_proxy import on_user_message, edit_proxy_message
+from ..send_proxy import on_user_message, edit_proxy_message, try_reverse_engineer
 from ..service import Context, Server, FluxerServer, DiscordServer, FluxerContext, DiscordContext, \
     ReactionActionEvent, Embed, Message
 from ..service.fluxer import Message as FluxerMessage, ReactionActionEvent as FluxerReactionActionEvent
@@ -106,7 +106,7 @@ async def handle_reaction(context: ReactionActionEvent, server: Server):
                 await ctx.message.remove_reaction("📝", user.id)
                 channel = await user.get_dm()
                 raw = await ctx.get_wh_message_data(ctx)
-                await channel.send(f"Editing message:\n```\n{raw.content}\n```")
+                await channel.send(f"Editing message:\n```\n{try_reverse_engineer(raw)}\n```")
                 await channel.send("Please enter the new content of the message here:")
                 editing_proxy_messages[user.id, ctx.platform] = channel.id, raw
                 await asyncio.sleep(120)

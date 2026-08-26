@@ -8,12 +8,13 @@ if TYPE_CHECKING:
     from discord.raw_models import MessageableChannel
 
 from . import common as c
-from .common import Embed, File
+from .common import Embed, File, RawEmbed
 from ..backend.models import Platform
 from ..interaction import Interactions, Interaction
 
 
 def to_embed(embed: Embed) -> discord.Embed:
+    if isinstance(embed, RawEmbed): return discord.Embed.from_dict(embed.data)
     return discord.Embed(title=embed.title, description=embed.description, footer=discord.EmbedFooter(embed.footer) if embed.footer else None, thumbnail=embed.thumbnail_url)
 
 
@@ -219,7 +220,17 @@ class Message(c.Message):
 
     @property
     def embeds(self) -> list[Embed]:
-        return [Embed(embed.title, embed.description, embed.footer.text if embed.footer else None, embed.thumbnail.url if embed.thumbnail else None) for embed in self.raw.embeds]
+        return [Embed(
+            embed.title,
+            embed.description,
+            embed.footer.text if embed.footer else None,
+            embed.thumbnail.url if embed.thumbnail else None,
+            embed.type == "rich"
+        ) for embed in self.raw.embeds]
+
+    @property
+    def raw_embeds(self) -> list[RawEmbed]:
+        return [RawEmbed(embed.to_dict()) for embed in self.raw.embeds]
 
     @property
     def attachments(self) -> list[Attachment]:

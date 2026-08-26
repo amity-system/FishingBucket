@@ -1,7 +1,12 @@
+import textwrap
+from datetime import datetime
 from typing import Literal
 
 import expr_dice_roller as dice
 import re
+
+import json5
+from pydantic import BaseModel, AnyHttpUrl, field_validator, ValidationError
 
 from .backend.cache import TTLCache
 from .backend.config import Config
@@ -14,6 +19,7 @@ from .backend.dice_environments import global_functions
 from .backend.utils import convert_attachments, normalize_emojis, roll_dice
 from .commands.specific import get_uid
 from .service import Context, Webhook, Attachment, Embed, Channel
+from .service.common import RawEmbed, Message
 
 print, error = start_log("send_proxy", "-prox")
 
@@ -152,12 +158,65 @@ async def send_proxy_message(proxy: Proxy, message: str, context: Context, attac
     )
 
 
-block_content_regex = re.compile(r"{{(.+?)}}")
+block_content_regex = re.compile(r"{{((?:.|\n)+?)}}(?!})")
+
+class EmbedAuthor(BaseModel):
+    name: str
+    url: str | None = None
+    icon_url: str | None = None
+
+class EmbedImage(BaseModel):
+    url: str
+    description: str | None = None
+
+class EmbedFooter(BaseModel):
+    text: str
+    icon_url: str | None = None
+
+class EmbedField(BaseModel):
+    name: str
+    value: str
+    inline: bool | None = None
+
+class SingularEmbed(BaseModel):
+    description: str
+    url: str | None = None
+    title: str | None = None
+    color: int | None = None
+    timestamp: datetime | None = None
+    author: EmbedAuthor | str | None = None
+    image: EmbedImage | str | None = None
+    thumbnail: EmbedImage | str | None = None
+    footer: EmbedFooter | str | None = None
+    fields: list[EmbedField] | None = None
+
+    @field_validator("author", mode="before")
+    @classmethod
+    def norm_author(cls, v: EmbedAuthor | str | None) -> EmbedAuthor | None:
+        if isinstance(v, str):
+            return EmbedAuthor(name=v)
+        return v
+
+    @field_validator("image", "thumbnail", mode="before")
+    @classmethod
+    def norm_image(cls, v: EmbedImage | str | None) -> EmbedImage | None:
+        if isinstance(v, str):
+            return EmbedImage(url=v)
+        return v
+
+    @field_validator("footer", mode="before")
+    @classmethod
+    def norm_footer(cls, v: EmbedFooter | str | None) -> EmbedFooter | None:
+        if isinstance(v, str):
+            return EmbedFooter(text=v)
+        return v
+
+
+def normalize_embed(embed: SingularEmbed) -> RawEmbed:
+    return RawEmbed(embed.model_dump(exclude_defaults=True, mode="python"))
 
 async def modify_message(user: int, guild_preferences: GuildPreference, message: str, embeds: list[Embed]) -> tuple[str, list[Embed]]:
-    clean_embeds = [embed for embed in embeds if embed.footer != "dice roll"]
-
-    embed_list = []
+    embed_list: list[Embed] = []
     evaluator = dice.Evaluator()
     fns = (await Database.instance.get_user_preferences(user)).dice_functions
     if fns:
@@ -175,19 +234,87 @@ async def modify_message(user: int, guild_preferences: GuildPreference, message:
     global_environment.immutable = guild_env
 
     def construct(match: re.Match) -> str:
+        inner = match.group(1).strip()
+        if inner.startswith("```") and inner.endswith("```"):
+            inner = inner[3:-3]
+        inner = textwrap.dedent(inner)
+
+        do_embed = True
+        j: dict | None = None
+        parse_embed_error: ValidationError | None = None
+
+        try:
+            print("{" + inner + "}")
+            j = json5.loads("{" + inner + "}")
+        except ValueError:
+            do_embed = False
+
+        if do_embed:
+            assert isinstance(j, dict)
+            try:
+                if "embeds" in j:
+                    effective_embeds_list = [normalize_embed(SingularEmbed(**e)) for e in j["embeds"]]
+                elif "embed" in j:
+                    effective_embeds_list = [normalize_embed(SingularEmbed(**j["embed"]))]
+                else:
+                    raise ValidationError("embed blocks must either have an `embed` field or an `embeds` field.")
+
+                embed_list.extend(effective_embeds_list)
+                return ""
+            except ValueError as e:
+                parse_embed_error = e
+
         def get_global_environment(): return global_environment
         def set_global_environment(ge):
             nonlocal global_environment
             global_environment = ge
-        ret, embed = roll_dice(match.group(1), get_global_environment, set_global_environment)
-        embed_list.append(embed)
-        return f"`{ret}`"
 
-    result = block_content_regex.sub(construct, message), embed_list + clean_embeds
+        if not do_embed:
+            ret, embed = roll_dice(inner, get_global_environment, set_global_environment)
+            embed_list.append(embed)
+            return f"`{ret}`"
+        else:
+            embed_list.append(Embed(
+                "Error parsing embed block",
+                "```\n" + str(parse_embed_error) + "\n```"
+            ))
+            return ""
+
+    result = block_content_regex.sub(construct, message), embed_list
     serialized = env.serialize()
     if serialized != fns:
         await Database.instance.set_user_preferences(user, dice_functions=serialized)
     return result
+
+
+valid_dice_roll_description_regex = re.compile(r"`.+` = (\d+(?:\.\d*)?)")
+
+def try_reverse_engineer(message: Message) -> str:
+    i = 0
+    replaces: list[tuple[slice, str]] = []
+    for embed in message.raw_embeds:
+        if embed.data.get("footer", {}).get("text") == "dice roll":
+            description = embed.data["description"]
+            if description.startswith("Error:"):
+                start_index = message.content.find("`error`", i)
+                i = start_index + len("`error`")
+            elif match := valid_dice_roll_description_regex.match(description):
+                result = match.group(1)
+                start_index = message.content.find(f"`{result}`", i)
+                i = start_index + len(f"`{result}`")
+            else:
+                start_index = message.content.find("`no value`", i)
+                i = start_index + len("`no value`")
+
+            replaces.append((slice(start_index, i), "{{" + embed.data["title"] + "}}"))
+        else:
+            replaces.append((slice(i, i), "{{embed: " + json5.dumps(normalize_embed(SingularEmbed(**embed.data)).data, indent=4) + "}}"))
+
+    out = message.content
+    for slicing, replace in replaces[::-1]:
+        out = out[:slicing.start] + replace + out[slicing.stop:]
+
+    return out
 
 
 async def reproxy(context: Context, old_proxy: Proxy, new_proxy: Proxy):

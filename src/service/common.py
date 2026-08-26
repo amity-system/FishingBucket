@@ -7,11 +7,18 @@ from ..backend.models import Platform
 
 
 class Embed:
-    def __init__(self, title: str, description: str, footer: str = None, thumbnail_url: str = None):
+    def __init__(self, title: str, description: str, footer: str = None, thumbnail_url: str = None, is_rich: bool = True):
         self.title = title
         self.description = description
         self.footer = footer
         self.thumbnail_url = thumbnail_url
+        self.is_rich = is_rich
+
+
+class RawEmbed(Embed):
+    def __init__(self, data: dict):
+        super().__init__("", "")
+        self.data = data
 
 
 class File:
@@ -208,6 +215,10 @@ class Message(ABC):
     @property
     @abstractmethod
     def embeds(self) -> list[Embed]: pass
+
+    @property
+    @abstractmethod
+    def raw_embeds(self) -> list[RawEmbed]: pass
 
     @property
     @abstractmethod

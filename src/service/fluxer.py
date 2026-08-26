@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from io import BytesIO
-from typing import Literal
+from typing import Literal, Any
 
 import aiohttp
 import fluxer
@@ -9,12 +9,21 @@ import fluxer.http as fhttp
 from aiohttp import ClientSession
 
 from . import common as c
-from .common import Embed, File
+from .common import Embed, File, RawEmbed
 from ..backend.models import Platform
 from ..interaction import Interactions, Interaction
 
 
+class _FluxerRawEmbed(fluxer.Embed):
+    def __init__(self, data: dict):
+        self.data = data
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.data
+
+
 def from_embed(embed: Embed) -> fluxer.Embed:
+    if isinstance(embed, RawEmbed): return _FluxerRawEmbed(embed.data)
     return fluxer.Embed(embed.title, embed.description, footer={"text": embed.footer}, thumbnail={"url": embed.thumbnail_url})
 
 
@@ -276,7 +285,17 @@ class Message(c.Message):
 
     @property
     def embeds(self) -> list[Embed]:
-        return [Embed(e.get("title", ""), e.get("description", ""), e.get("footer", {}).get("text"), e.get("thumbnail", {}).get("url")) for e in self.raw.embeds]
+        return [Embed(
+            e.get("title", ""),
+            e.get("description", ""),
+            e.get("footer", {}).get("text"),
+            e.get("thumbnail", {}).get("url"),
+            e.get("type", "rich") == "rich"
+        ) for e in self.raw.embeds]
+
+    @property
+    def raw_embeds(self) -> list[RawEmbed]:
+        return [RawEmbed(e) for e in self.raw.embeds]
 
     @property
     def attachments(self) -> list[Attachment]:
