@@ -7,8 +7,11 @@ import fluxer
 from ..backend.database import Database
 from ..backend.logging import start_log
 from ..backend.models import Platform
+from ..backend.utils import quote
 from ..interaction import Interactions
-from ..send_proxy import on_user_message, edit_proxy_message, try_reverse_engineer
+from ..proxying.editing import try_reverse_engineer
+from ..proxying.event import on_user_message
+from ..proxying.executor import edit_proxy_message
 from ..service import Context, Server, FluxerServer, DiscordServer, FluxerContext, DiscordContext, \
     ReactionActionEvent, Embed, Message
 from ..service.fluxer import Message as FluxerMessage, ReactionActionEvent as FluxerReactionActionEvent
@@ -83,7 +86,7 @@ async def handle_reaction(context: ReactionActionEvent, server: Server):
             if proxy := await Database.instance.get_proxy(lnk.proxy_id):
                 e = Embed(
                     "Proxied Message",
-                    f"**Proxy**: {proxy.name}\n**Owner**: <@{lnk.platform_user}> (`{lnk.platform_user}`)\n**Message Link**: [link]({await ctx.message.mention()})\n**Message**:\n{'\n'.join(('> ' + ln) for ln in ctx.content.split('\n'))}"
+                    f"**Proxy**: {proxy.name}\n**Owner**: <@{lnk.platform_user}> (`{lnk.platform_user}`)\n**Message Link**: [link]({await ctx.message.mention()})\n**Message**:\n{quote(ctx.content)}"
                 )
                 dm = await user.get_dm()
                 await dm.send("", [e])

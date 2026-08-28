@@ -1,4 +1,5 @@
 import random
+from types import EllipsisType
 from typing import Awaitable, Any
 
 from textdistance import damerau_levenshtein as edit_distance
@@ -15,7 +16,7 @@ from ...backend.utils import normalize_emojis
 from ...service import Context
 
 
-async def get_uid(context: Context, create: bool = False, on_unregistered: Awaitable[Any] | type[Ellipsis] = None) -> int:
+async def get_uid(context: Context, create: bool = False, on_unregistered: Awaitable[Any] | EllipsisType | None = None) -> int:
     uid = await Database.instance.get_user_id(context.author.id, context.platform, create)
     if uid == -1 and on_unregistered is not ...:
         if on_unregistered:

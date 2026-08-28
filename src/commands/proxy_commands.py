@@ -11,7 +11,7 @@ from ..backend import database as db
 from ..backend.models import Proxy
 from ..backend.template_utils import Template
 from ..backend.utils import normalize_emojis
-from ..send_proxy import reproxy, edit_proxy_message
+from ..proxying.executor import reproxy, edit_proxy_message
 from ..service import Context, Embed
 
 
