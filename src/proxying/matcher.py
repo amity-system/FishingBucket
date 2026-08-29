@@ -63,9 +63,8 @@ async def get_proxied_messages(message: str, user_id: int, autoproxy_preferences
             autoproxy_proxy = await get_first_spotlight_proxies(user_id)
         else:
             prox_id = autoproxy_preferences.proxy if autoproxy_preferences.proxy is not None else autoproxy_preferences.last_used_proxy
-            if prox_id is None:
-                return []
-            autoproxy_proxy = await Database.instance.get_proxy(prox_id)
+            if prox_id is not None:
+                autoproxy_proxy = await Database.instance.get_proxy(prox_id)
 
     previous_proxied_message: ProxiedMessage | None = None
     for line in message.split("\n"):
