@@ -76,6 +76,7 @@ def setup():
     @hook_command("set nickname")
     async def _(context: Context, proxy: Proxy, new_nickname: str | None):
         old_name = proxy.name
+        new_nickname = new_nickname if new_nickname is not None else ""
         new_nickname = normalize_emojis(new_nickname)
         await Database.instance.update_nickname(proxy.id, new_nickname)
         embed = Embed(
@@ -88,6 +89,7 @@ def setup():
 
     @hook_command("set pronouns")
     async def _(context: Context, proxy: Proxy, new_pronouns: str | None):
+        new_pronouns = new_pronouns if new_pronouns is not None else ""
         await Database.instance.update_pronouns(proxy.id, new_pronouns)
         if new_pronouns:
             embed = Embed(
