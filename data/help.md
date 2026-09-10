@@ -17,9 +17,6 @@ To remove a proxy, use `{prefix}remove`!
 
 You can also use :x: to any command response that you've triggered to delete the response!
 
-Try the [online dashboard]({config.website.dashboard}) for managing your proxies! It may be easier than using commands.
 Invite me, or join the support community by running `{prefix}invite`! We are also on other platforms.
-
-By using this bot, you implicitly agree to the [Terms of Service]({config.website.terms}) and [Privacy Policy]({config.website.privacy}).
 
 Use the buttons below to see the commands!
