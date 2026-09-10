@@ -104,7 +104,12 @@ async def _compute_overwrites(base_permissions: int, bot: fluxer.Bot, member: fl
         return ALL
 
     permissions = base_permissions
-    overwrites: list[dict] = (await bot._http.request(fhttp.Route("GET", "/channels/{cid}", cid=str(channel.id))))["permission_overwrites"] or []
+    route = bot._http._route(
+        "GET",
+        "/channels/{cid}",
+        cid=str(channel.id)
+    )
+    overwrites: list[dict] = (await bot._http.request(route))["permission_overwrites"] or []
     overwrite_everyone = [r for r in overwrites if int(r["id"]) == channel.guild_id]  # Find (@everyone) role overwrite and apply it.
     if overwrite_everyone:
         permissions &= ~int(overwrite_everyone[0]["deny"])
@@ -437,8 +442,13 @@ class Webhook(c.Webhook):
         if context.message.has_reference:
            content = context.content.split("\n")[0] + content
 
+        route = self.raw._http._route(
+            "PATCH",
+            "/webhooks/{wid}/{wtk}/messages/{mid}",
+            wid=self.id, wtk=self.token, mid=context.id
+        )
         await self.raw._http.request(
-            fhttp.Route("PATCH", "/webhooks/{wid}/{wtk}/messages/{mid}", wid=self.id, wtk=self.token, mid=context.id),
+            route,
             json={
                 "content": content,
                 "embeds": [from_embed(embed).to_dict() for embed in embeds or []]
