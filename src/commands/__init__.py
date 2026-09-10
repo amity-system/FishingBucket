@@ -6,7 +6,7 @@ from . import (
     io_commands,
     guild_commands,
     user_commands,
-    dice_commands,
+    # dice_commands,
     spotlight_commands
 )
 
@@ -18,7 +18,7 @@ modules = [
     io_commands,
     guild_commands,
     user_commands,
-    dice_commands,
+    # dice_commands,
     spotlight_commands
 ]
 
