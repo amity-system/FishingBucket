@@ -1,0 +1,7 @@
+The reason why {name} does not support role/user based restriction is the same as why PluralKit does not support it. I don't think I can explain the reasoning any better than they have, so I will quote the PluralKit Devs directly:
+
+> The general stance of the devs (and other staff) is "if we implement it, servers will use it to gatekeep who is allowed to use PluralKit for proxying even more than they already do, especially when it comes to system origin." We don't want to add any feature that makes it easier for people to be mean to other people, when most of the theoretical benefit of role-locking can be provided already by active moderation using existing Discord tools.
+
+> One of the main benefits of PluralKit in our eyes is that anyone can join a server with PluralKit set up and just start proxying, you don't have to go off and fulfill extra requirements that would be imposed by server staff to use an accessibility tool - because that’s what PluralKit is, an accessibility tool. no one using PluralKit should have to do anything more than a non-PluralKit-user joining the same server.
+
+We apologize if this makes moderation slightly more challenging, but we believe that maintaining an inclusive and accessible environment is more important than supporting restrictive features. Instead, server moderation should rely on existing {context.platform} tools and active management to enforce rules and maintain a welcoming environment. {name} does support restricting based on channels as well as dedicated logging functionality to help aid moderation efforts.

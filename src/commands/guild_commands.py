@@ -4,6 +4,8 @@ from .generic import hook_command
 from .utils import require_permissions
 from ..backend import database as db
 from ..backend.database import Database
+from ..backend.data_reader import DataReader
+from ..backend.template_utils import Template
 from ..service import Context, Channel, Role, User, Embed
 
 
@@ -24,6 +26,16 @@ def setup():
             await context.reply("", [Embed(
                 "Community Settings Changed!",
                 f"Community default has been changed to {'allowing' if allow in ('allow', 'default') else 'disallowing'} proxying. Any previous or future channel-specific override will override this default. View them by using the `list allows` command."
+            )])
+            return
+
+        # TODO: In future, remove `Role` & `User` from being types this function can use at all and inform the user of `role_restriction_explanation.md` elsewhere.
+        # Show user an error if there is a Role or User in the allow_list
+        if any(isinstance(thing, (Role, User)) for thing in allow_list):
+            await context.reply("", [Embed(
+                "Error",
+                Template.from_string(DataReader.instance["role_restriction_explanation.md"])
+                .compute(Template.get_default_metatext_variables(context), "")
             )])
             return
 
