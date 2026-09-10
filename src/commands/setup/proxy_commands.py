@@ -135,7 +135,7 @@ def setup():
         make_command(
             {
                 "reproxy": [
-                    "rp"
+                    "rp", "crimes", "crime"
                 ]
             },
             "Changes the proxy of your last message in this channel.",
