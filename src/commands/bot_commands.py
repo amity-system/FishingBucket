@@ -35,14 +35,16 @@ def setup():
         bot_invite, server_invite = get_invites(context.platform)
         description = f"Use [this link]({bot_invite}) to invite me to your community!\nSupport community invite: {server_invite}."
 
-        if len(Platform) > 1:
-            description += "\n\n"
-            parts = []
-            for platform in Platform:
-                if platform != context.platform:
-                    b, s = get_invites(platform)
-                    parts.append(f"Come join us on {platform.name}! [Invite bot]({b}) and [join community]({s})!")
-            description += "\n".join(parts)
+        # HACK: The below code is commented out as it currently prevents getting invites when Discord is not configured. 
+        # TODO: Properly fix this in the future
+        # if len(Platform) > 1:
+        #     description += "\n\n"
+        #     parts = []
+        #     for platform in Platform:
+        #         if platform != context.platform:
+        #             b, s = get_invites(platform)
+        #             parts.append(f"Come join us on {platform.name}! [Invite bot]({b}) and [join community]({s})!")
+        #     description += "\n".join(parts)
 
         await context.reply("", embeds=[
             Embed(
