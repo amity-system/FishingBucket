@@ -4,7 +4,7 @@ from .generic import hook_command
 from .specific import get_uid
 from .utils import example_trigger_text
 from ..backend.database import Database
-from ..backend.models import Proxy, ProxyTag
+from ..backend.models import Proxy, ProxyTag, Platform
 from ..backend.template_utils import Template
 from ..backend.utils import normalize_emojis, quote
 from ..interaction import Interactions, Interaction
@@ -14,16 +14,37 @@ from ..service import Context, ReactionActionEvent, Embed
 def setup():
     @hook_command("set avatar")
     async def _(context: Context, proxy: Proxy, url: str | None):
+        # TODO: Add warning if `url` is hosted on a Flexer instance
+        warn_msg = ""
+        reset_avatar = False
+
         if not context.message.attachments:
-            avatar_url = url or Proxy.random_avatar()
+            if url:
+                avatar_url = url
+            else:
+                avatar_url = Proxy.random_avatar()
+                reset_avatar = True
         else:
             avatar_url = context.message.attachments[0].url
 
+            # Images uploaded to Fluxer expire after a period of time.
+            if context.platform is Platform.Fluxer:
+                # TODO: Use name of Fluxer Instance instead of hardcoding "Fluxer"
+                warn_msg = (
+                    "\n\n**Warning:** Your avatar is hosted on Fluxer.\n"
+                    "Your avatar will disappear after the original upload expires.\n"
+                    "Use a URL from an external image host for a permanent avatar."
+                )
+
         await Database.instance.update_avatar(proxy.id, avatar_url)
+
+        action = "reset" if reset_avatar else "updated"
+        description = f"The avatar for **{proxy.name}** has been {action}!{warn_msg}"
+
         embed = Embed(
             "Proxy Updated!",
-            f"The avatar for **{proxy.name}** has been updated!",
-            thumbnail_url=avatar_url
+            description,
+            thumbnail_url=avatar_url,
         )
         await context.reply("", [embed])
 
